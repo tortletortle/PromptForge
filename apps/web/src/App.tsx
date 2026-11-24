@@ -37,6 +37,7 @@ import type {
   PromptAssetInput,
   PromptAssetVersion,
   PromptProject,
+  PromptRole,
   PromptTask,
   VariableDefinition
 } from "@promptforge/core";
@@ -46,6 +47,7 @@ type View = "library" | "composer" | "history";
 
 interface AssetFormState {
   name: string;
+  role: PromptRole;
   description: string;
   content: string;
   category: string;
@@ -58,6 +60,7 @@ interface AssetFormState {
 
 const emptyAssetForm: AssetFormState = {
   name: "",
+  role: "system",
   description: "",
   content: "",
   category: "General",
@@ -76,6 +79,12 @@ const adapterLabels: Record<AdapterId, string> = {
   local: "Local AI"
 };
 
+const roleLabels: Record<PromptRole, string> = {
+  system: "系统指令",
+  developer: "开发者指令",
+  user: "用户输入"
+};
+
 function splitList(value: string): string[] {
   return [...new Set(value.split(",").map((item) => item.trim()).filter(Boolean))];
 }
@@ -83,6 +92,7 @@ function splitList(value: string): string[] {
 function formFromAsset(asset: PromptAsset): AssetFormState {
   return {
     name: asset.name,
+    role: asset.role ?? "system",
     description: asset.description,
     content: asset.content,
     category: asset.category,
@@ -101,6 +111,7 @@ function payloadFromForm(form: AssetFormState): PromptAssetInput {
   }
   return {
     name: form.name.trim(),
+    role: form.role,
     description: form.description,
     content: form.content,
     category: form.category.trim() || "General",
@@ -142,6 +153,7 @@ function App() {
   const [newTaskName, setNewTaskName] = useState("");
   const [taskContextJson, setTaskContextJson] = useState("{}");
   const [compileResponse, setCompileResponse] = useState<CompileResponse | null>(null);
+  const [previewMode, setPreviewMode] = useState<"artifact" | "messages">("artifact");
   const [history, setHistory] = useState<CompileRun[]>([]);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -310,6 +322,16 @@ function App() {
     }
   }
 
+  function openAsset(assetId: string): void {
+    const asset = assets.find((item) => item.id === assetId);
+    if (!asset) {
+      setNotice("该来源资产当前不存在，可能已被删除。");
+      return;
+    }
+    setView("library");
+    selectAsset(asset);
+  }
+
   function toggleAsset(id: string): void {
     setSelectedAssetIds((current) => current.includes(id)
       ? current.filter((item) => item !== id)
@@ -389,7 +411,9 @@ function App() {
   }
 
   async function copyOutput(): Promise<void> {
-    const content = compileResponse?.artifact?.content ?? compileResponse?.result.text;
+    const content = previewMode === "messages" && compileResponse
+      ? JSON.stringify(compileResponse.result.messages, null, 2)
+      : compileResponse?.artifact?.content ?? compileResponse?.result.text;
     if (!content) return;
     try {
       await navigator.clipboard.writeText(content);
@@ -519,6 +543,7 @@ function App() {
                         <div className="asset-card-top">
                           <div className="asset-type-icon"><FileText size={16} /></div>
                           <span className="asset-category">{asset.category}</span>
+                          <span className={"role-badge role-" + (asset.role ?? "system")}>{roleLabels[asset.role ?? "system"]}</span>
                           <span className="asset-version">v{asset.version}</span>
                         </div>
                         <strong>{asset.name}</strong>
@@ -550,7 +575,7 @@ function App() {
                           <h2>{isNewAsset ? "创建提示词模块" : "编辑模块"}</h2>
                         </div>
                         <div className="editor-heading-actions">
-                          {!isNewAsset && assetVersions.length > 1 && <select className="version-restore-select" defaultValue="" aria-label="恢复历史版本" onChange={(event) => { const version = Number(event.target.value); event.currentTarget.value = ""; if (version > 0) void restoreVersion(version); }}><option value="">版本历史 · {assetVersions.length}</option>{assetVersions.filter((item) => item.version !== selectedAsset?.version).map((item) => <option key={item.version} value={item.version}>恢复 v{item.version} · {formatDate(item.createdAt)}</option>)}</select>}
+                          {!isNewAsset && assetVersions.length > 1 && <select className="version-restore-select" defaultValue="" aria-label="恢复历史版本" onChange={(event) => { const version = Number(event.target.value); event.currentTarget.value = ""; if (version > 0) void restoreVersion(version); }}><option value="">版本历史 · {assetVersions.length}</option>{assetVersions.filter((item) => item.version !== selectedAsset?.version).map((item) => <option key={item.version} value={item.version}>恢复 v{item.version} · {roleLabels[item.snapshot.role ?? "system"]} · {formatDate(item.createdAt)}</option>)}</select>}
                           {!isNewAsset && <button className="icon-button danger-quiet" onClick={removeAsset} title="删除模块"><Trash2 size={16} /></button>}
                           <button className="button button-primary button-small" onClick={saveAsset} disabled={busy}>
                             {busy ? <LoaderCircle className="spin" size={15} /> : <SaveIcon />}
@@ -562,6 +587,7 @@ function App() {
                         <div className="form-grid">
                           {!isNewAsset && selectedAssetId && <label className="field field-wide"><span>模块 ID <small>供依赖与冲突引用</small></span><input readOnly value={selectedAssetId} /></label>}
                           <label className="field field-wide"><span>模块名称 <b>*</b></span><input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="例如：代码审查标准" /></label>
+                          <label className="field"><span>提示词角色 <small>决定结构化消息顺序</small></span><select aria-label="提示词角色" value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as PromptRole })}><option value="system">系统指令（system）</option><option value="developer">开发者指令（developer）</option><option value="user">用户输入（user）</option></select></label>
                           <label className="field"><span>分类</span><input value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} placeholder="Engineering" /></label>
                           <label className="field"><span>优先级</span><input type="number" value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value })} /></label>
                           <label className="field field-wide"><span>描述</span><input value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="这个模块解决什么问题？" /></label>
@@ -572,7 +598,7 @@ function App() {
                           <label className="field field-wide"><span>变量定义 <small>JSON 数组</small></span><textarea className="json-editor" value={form.variablesJson} onChange={(event) => setForm({ ...form, variablesJson: event.target.value })} spellCheck={false} /></label>
                         </div>
                       </div>
-                      <div className="editor-footer"><span><ShieldCheck size={14} /> {selectedAsset ? "当前 v" + selectedAsset.version + " · " + assetVersions.length + " 个历史快照" : "保存后生成新版本"}</span><span>支持 {"{{ variable }}"} 模板</span></div>
+                      <div className="editor-footer"><span><ShieldCheck size={14} /> {selectedAsset ? roleLabels[selectedAsset.role ?? "system"] + " · 当前 v" + selectedAsset.version + " · " + assetVersions.length + " 个历史快照" : "保存后生成新版本"}</span><span>支持 {"{{ variable }}"} 模板</span></div>
                     </>
                   ) : (
                     <div className="editor-empty">
@@ -627,7 +653,7 @@ function App() {
                         <label key={asset.id} className={selectedAssetIds.includes(asset.id) ? "selectable-asset checked" : "selectable-asset"}>
                           <input type="checkbox" checked={selectedAssetIds.includes(asset.id)} onChange={() => toggleAsset(asset.id)} />
                           <span className="custom-check">{selectedAssetIds.includes(asset.id) && <Check size={12} />}</span>
-                          <span className="selectable-copy"><strong>{asset.name}</strong><small>{asset.category} · v{asset.version}</small></span>
+                          <span className="selectable-copy"><strong>{asset.name}</strong><small>{roleLabels[asset.role ?? "system"]} · {asset.category} · v{asset.version}</small></span>
                           <span className="priority-pill">P{asset.priority}</span>
                         </label>
                       ))}
@@ -663,19 +689,74 @@ function App() {
                       {compileResponse.result.errors.length > 0 && (
                         <div className="diagnostics error-diagnostics">
                           <strong><AlertCircle size={14} /> 编译错误</strong>
-                          {compileResponse.result.errors.map((item, index) => <p key={item.code + index}><b>{item.code}</b> · {item.message}</p>)}
+                          {compileResponse.result.errors.map((item, index) => (
+                            <div className="diagnostic-item" key={item.code + index}>
+                              <p><b>{item.code}</b> · {item.message}</p>
+                              {item.assetIds && item.assetIds.length > 0 && (
+                                <div className="diagnostic-links">
+                                  {item.assetIds.map((id) => {
+                                    const asset = assets.find((candidate) => candidate.id === id);
+                                    return asset
+                                      ? <button type="button" key={id} onClick={() => openAsset(id)}>{asset.name}</button>
+                                      : <span key={id}>缺失资产 {id.slice(0, 8)}</span>;
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          ))}
                         </div>
                       )}
                       {compileResponse.result.warnings.length > 0 && (
                         <div className="diagnostics warning-diagnostics">
                           <strong><AlertCircle size={14} /> 注意事项</strong>
-                          {compileResponse.result.warnings.map((item, index) => <p key={item.code + index}><b>{item.code}</b> · {item.message}</p>)}
+                          {compileResponse.result.warnings.map((item, index) => (
+                            <div className="diagnostic-item" key={item.code + index}>
+                              <p><b>{item.code}</b> · {item.message}</p>
+                              {item.assetIds && item.assetIds.length > 0 && (
+                                <div className="diagnostic-links">
+                                  {item.assetIds.map((id) => {
+                                    const asset = assets.find((candidate) => candidate.id === id);
+                                    return asset
+                                      ? <button type="button" key={id} onClick={() => openAsset(id)}>{asset.name}</button>
+                                      : <span key={id}>缺失资产 {id.slice(0, 8)}</span>;
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          ))}
                         </div>
                       )}
-                      <div className="code-preview">
-                        <div className="code-toolbar"><span><span className="code-dot" /> {compileResponse.artifact?.fileName ?? "compile-preview.md"}</span><span>PREVIEW</span></div>
-                        <pre>{(compileResponse.artifact?.content ?? compileResponse.result.text) || "编译失败，没有可导出的内容。"}</pre>
+                      <div className="preview-tabs" role="tablist" aria-label="编译预览类型">
+                        <button type="button" role="tab" aria-selected={previewMode === "artifact"} className={previewMode === "artifact" ? "preview-tab active" : "preview-tab"} onClick={() => setPreviewMode("artifact")}>目标文件</button>
+                        <button type="button" role="tab" aria-selected={previewMode === "messages"} className={previewMode === "messages" ? "preview-tab active" : "preview-tab"} onClick={() => setPreviewMode("messages")}>结构化消息 <span>{compileResponse.result.messages.length}</span></button>
                       </div>
+                      {previewMode === "messages" ? (
+                        <div className="message-list" data-testid="structured-message-list">
+                          {compileResponse.result.messages.length > 0 ? compileResponse.result.messages.map((message, index) => (
+                            <article className={"message-card message-" + message.role} key={message.role + "-" + index} data-testid="compiled-message">
+                              <div className="message-card-header">
+                                <span className={"role-badge role-" + message.role}>{roleLabels[message.role]}</span>
+                                <span>MESSAGE {String(index + 1).padStart(2, "0")}</span>
+                              </div>
+                              <pre>{message.content}</pre>
+                              <div className="message-sources">
+                                <span>来源模块</span>
+                                {message.sourceAssetIds.map((id) => {
+                                  const asset = assets.find((candidate) => candidate.id === id);
+                                  return asset
+                                    ? <button type="button" key={id} onClick={() => openAsset(id)}>{asset.name}</button>
+                                    : <span key={id}>已删除资产 {id.slice(0, 8)}</span>;
+                                })}
+                              </div>
+                            </article>
+                          )) : <div className="message-empty">当前没有可展示的结构化消息。编译失败时请先查看上方诊断。</div>}
+                        </div>
+                      ) : (
+                        <div className="code-preview">
+                          <div className="code-toolbar"><span><span className="code-dot" /> {compileResponse.artifact?.fileName ?? "compile-preview.md"}</span><span>PREVIEW</span></div>
+                          <pre>{(compileResponse.artifact?.content ?? compileResponse.result.text) || "编译失败，没有可导出的内容。"}</pre>
+                        </div>
+                      )}
                       <div className="output-actions">
                         <button className="button button-secondary" onClick={copyOutput} disabled={!compileResponse.result.text}><Copy size={15} /> 复制内容</button>
                         <button className="button button-primary" onClick={downloadOutput} disabled={!compileResponse.artifact}><ArrowDownToLine size={15} /> 导出文件</button>
