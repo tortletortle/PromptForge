@@ -1,0 +1,77 @@
+name: Generate npm lockfile
+
+on:
+  push:
+    branches: ["build/npm-lockfile"]
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Generate and verify workspace lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -f package-lock.json ]; then
+            echo "package-lock.json already exists; generation is complete."
+            exit 0
+          fi
+
+          echo "Node: $(node --version)"
+          echo "npm: $(npm --version)"
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+          node <<'NODE'
+          const lock = require("./package-lock.json");
+          const expected = ["", "apps/api", "apps/web", "packages/core"];
+          if (lock.lockfileVersion < 3) {
+            throw new Error("Expected lockfileVersion 3 or newer.");
+          }
+          for (const workspace of expected) {
+            if (!lock.packages || !Object.hasOwn(lock.packages, workspace)) {
+              throw new Error("Missing workspace in lockfile: " + (workspace || "(root)"));
+            }
+          }
+          console.log("Lockfile version:", lock.lockfileVersion);
+          console.log("Workspace entries:", expected.length);
+          NODE
+
+          npm ci --no-audit --no-fund
+          npm ls --all --parseable | sort > /tmp/dependency-tree-first.txt
+
+          rm -rf node_modules
+          npm ci --no-audit --no-fund
+          npm ls --all --parseable | sort > /tmp/dependency-tree-second.txt
+          diff -u /tmp/dependency-tree-first.txt /tmp/dependency-tree-second.txt
+
+          npx playwright install chromium
+          npm run check
+          npm run e2e
+
+      - name: Commit generated lockfile
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          if git diff --cached --quiet; then
+            echo "No lockfile changes to commit."
+            exit 0
+          fi
+          git commit -m "build: add reproducible npm workspace lockfile"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
