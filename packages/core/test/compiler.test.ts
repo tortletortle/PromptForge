@@ -227,6 +227,25 @@ describe("PromptForge deterministic kernel", () => {
     });
   });
 
+  it("validates only the selected dependency closure, not unrelated asset contents", () => {
+    const selected = asset({ id: "selected", name: "Selected", content: "Valid prompt" });
+    const unrelated = asset({ id: "unrelated", name: "Broken but unused", content: "   " });
+
+    const validCompile = compilePromptKernel({
+      assets: [selected, unrelated],
+      selectedAssetIds: ["selected"]
+    });
+    expect(validCompile.success).toBe(true);
+
+    const invalidCompile = compilePromptKernel({
+      assets: [selected, unrelated],
+      selectedAssetIds: ["unrelated"]
+    });
+    expect(invalidCompile.success).toBe(false);
+    expect(invalidCompile.errors.map((item) => item.code)).toContain("EMPTY_ASSET_CONTENT");
+    expect(invalidCompile.manifest.resolvedAssets[0]?.content).toBe("");
+  });
+
   it("does not auto-select unrelated assets", () => {
     const selected = asset({ id: "selected", name: "Selected", content: "Keep" });
     const unrelated = asset({ id: "unrelated", name: "Unrelated", content: "Do not include" });
