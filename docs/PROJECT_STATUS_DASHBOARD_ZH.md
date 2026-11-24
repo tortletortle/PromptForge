@@ -5,25 +5,24 @@
 ## 当前研发基线
 
 - 仓库：`tortletortle/PromptForge`
-- 稳定分支：`main` @ `b4d7bef19ebad4def1ce78978cdd0afae5dea542`
-- 集成开发分支：`develop/v0.1` @ `ac1529cb6427a9342f43ed771ff374a9f4fcdc23`
-- Kernel 专项分支：`develop/prompt-kernel`
+- 稳定集成分支：`main` @ `abba0f13362df5a7b2b46adf31739705869dcdfe`
+- 开发分支：`develop/v0.1` @ `3262b16f3eb912414ee170e39da38b6854f5c576`
 - 技术栈：Node.js 22、TypeScript、React、Fastify、SQLite、Vite。
 
 ### PR 收敛状态
 
-| PR | 目标分支 | 状态 | 合并提交 / 当前说明 |
+| PR | 目标分支 | 状态 | 合并提交 |
 |---|---|---|---|
 | [#4 Kernel 压力测试](https://github.com/tortletortle/PromptForge/pull/4) | develop/prompt-kernel | 已合并 | `2e2b349136f433c320870ce3996ac98f7586a8db` |
 | [#3 Prompt Kernel V0.2](https://github.com/tortletortle/PromptForge/pull/3) | develop/v0.1 | 已合并 | `d6d33f4d0827a88d5447d4b21a216bc5b10ef8ea` |
-| [#1 V0.1 产品基础](https://github.com/tortletortle/PromptForge/pull/1) | main | Draft，未合并 | 当前集成候选为 `ac1529cb6427a9342f43ed771ff374a9f4fcdc23` |
+| [#1 V0.1 产品基础](https://github.com/tortletortle/PromptForge/pull/1) | main | 已合并 | `abba0f13362df5a7b2b46adf31739705869dcdfe` |
 
-**注意：** Kernel 和压力测试成果已经进入 `develop/v0.1` 集成分支，但还没有进入 `main`。PR #1 合并前仍需完成最终审查。
+**P0 主线收敛已经完成。** V0.1 产品基础、V0.2 Kernel 和压力测试成果均已进入 main。当前仍是初始开发基线，不是正式发布版本。
 
-## 最新自动化验收
+## 最新主线自动化验收
 
-- 被测提交：`ac1529cb6427a9342f43ed771ff374a9f4fcdc23`
-- [GitHub Actions Run #94：Success](https://github.com/tortletortle/PromptForge/actions/runs/45384611003)
+- main 提交：`abba0f13362df5a7b2b46adf31739705869dcdfe`
+- [GitHub Actions Run #101：Success](https://github.com/tortletortle/PromptForge/actions/runs/45385688286)
 - Core 测试：31/31。
 - API 测试：14/14。
 - Core / API / Web TypeScript 检查：通过。
@@ -31,7 +30,7 @@
 - Playwright 浏览器 smoke test：1/1。
 - 浏览器报告由 CI 上传。
 
-以上是该精确提交的自动化证据，不代表已经完成真实平台兼容性或生产环境验收。
+以上是该精确主线提交的自动化证据，不代表已经完成真实平台兼容性或生产环境验收。
 
 ## V0.1 产品基础
 
@@ -89,24 +88,25 @@
 3. 编译器不发送提示词到外部模型。
 4. 适配器只生成文件，不会自动覆盖外部项目。
 5. Token 估算不是具体模型的精确 tokenizer。
-6. 尚未完成多进程 SQLite 写竞争、真实网络压力、长期 Soak、峰值 RSS/GC/CPU profiling。
+6. 尚未完成多进程 SQLite 写竞争、独立进程重启、真实网络压力、长期 Soak、峰值 RSS/GC/CPU profiling。
 7. npm lockfile 尚未纳入仓库，跨时间安装的传递依赖版本还不能完全锁定。
-8. API 数据库进程重启验收、备份恢复和完整数据导入/导出仍需补齐。
+8. API 备份恢复和完整数据导入/导出仍需补齐。
 
 ## 下一阶段执行顺序
 
-| 任务 | 优先级 | 验收目标 |
-|---|---|---|
-| PF-004 前端角色编辑 | P0 | 能创建和编辑三种角色资产 |
-| PF-005 结构化预览与 Manifest 历史查看 | P1 | 能定位消息来源并复现历史输入 |
-| PF-006 SQLite 多进程竞争与恢复 | P0 | 无静默丢失、迁移可恢复 |
-| PF-007 API 输入与资源限制 | P0 | 超限有结构化错误，不导致进程失控 |
-| PF-008 真实网络压测与 Soak | P0 | 有可复跑脚本、原始数据和性能报告 |
-| PF-009 备份恢复 | P1 | 数据库往返恢复通过 |
-| PF-010 JSON Bundle 导入/导出 | P1 | 往返一致、失败回滚 |
-| PF-011 Cursor / Claude Code 兼容性 | P1 | 真实目标环境验证 |
-| PF-012 ChatGPT / API / Local 适配器验收 | P1 | 契约与实际使用验证 |
-| PF-013 真实 TokenCounter | P1 | tokenizer 误差对照 |
-| PF-014 桌面安装包选型 | P2 | 干净环境安装与升级验收 |
+| 任务 | 优先级 | 状态 | 验收目标 |
+|---|---|---|---|
+| PF-004 前端角色编辑 | P0 | 待启动 | 能创建和编辑三种角色资产 |
+| PF-005 结构化预览与 Manifest 历史查看 | P1 | 待启动 | 能定位消息来源并复现历史输入 |
+| PF-006 SQLite 多进程竞争与恢复 | P0 | 待启动 | 无静默丢失、迁移可恢复 |
+| PF-007 API 输入与资源限制 | P0 | 待启动 | 超限有结构化错误，不导致进程失控 |
+| PF-008 真实网络压测与 Soak | P0 | 阻塞中 | 有可复跑脚本、原始数据和性能报告 |
+| PF-009 备份恢复 | P1 | 待启动 | 数据库往返恢复通过 |
+| PF-010 JSON Bundle 导入/导出 | P1 | 待启动 | 往返一致、失败回滚 |
+| PF-011 Cursor / Claude Code 兼容性 | P1 | 待启动 | 真实目标环境验证 |
+| PF-012 ChatGPT / API / Local 适配器验收 | P1 | 待启动 | 契约与实际使用验证 |
+| PF-013 真实 TokenCounter | P1 | 待启动 | tokenizer 误差对照 |
+| PF-014 桌面安装包选型 | P2 | 待启动 | 干净环境安装与升级验收 |
+| PF-015 npm lockfile 与 npm ci | P0 | 待启动 | 依赖版本锁定、干净安装通过 |
 
-**当前结论：** `develop/v0.1` 已形成 V0.1 产品基础 + V0.2 角色化内核的集成候选，并通过 Run #94。尚未合并 main，也尚未达到正式发布条件。
+**当前结论：** main 已具备可持续开发的初始产品基线，并通过 Run #101。下一阶段优先完成角色化前端和可靠性专项；尚未达到正式发布条件。
