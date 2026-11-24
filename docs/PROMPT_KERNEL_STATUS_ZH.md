@@ -65,7 +65,7 @@ GitHub Actions [Run #50](https://github.com/tortletortle/PromptForge/actions/run
 
 - 报告：[Prompt Kernel 压力测试报告](PROMPT_KERNEL_STRESS_REPORT_ZH.md)
 - 测试 PR：[#4](https://github.com/tortletortle/PromptForge/pull/4)，Draft。
-- 测试提交：\`0d47b9498361c7991e2b7afcc6cdb905e397f9fb\`
+- 测试提交：`0d47b9498361c7991e2b7afcc6cdb905e397f9fb`
 - CI：[Run #62：Success](https://github.com/tortletortle/PromptForge/actions/runs/45354644558)
 - Core：31/31；API：10/10；三工作区类型检查、生产构建及浏览器 smoke test 全部通过。
 - 关键规模：10k 资产、20k 深度链、20k 深层环、10k 宽依赖、50k 选择记录、8k 变量、2.075 MB Unicode 模板、100 并发 API 请求。
