@@ -9,7 +9,7 @@ test("asset → project/task → compile → export → history", async ({ page 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "提示词资产库" })).toBeVisible();
 
-  await page.getByRole("button", { name: "新建模块" }).click();
+  await page.locator(".page-heading").getByRole("button", { name: "新建模块" }).click();
   await page.getByPlaceholder("例如：代码审查标准").fill(assetName);
   await page.locator(".content-editor").fill("Write concise technical guidance for {{ audience }}.");
   await page.locator(".json-editor").fill('[{"name":"audience","required":true}]');
