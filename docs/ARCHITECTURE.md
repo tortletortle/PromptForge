@@ -87,8 +87,8 @@ Role-aware targets consume `CompileResult.messages`; text-only targets consume `
 
 ## Security boundary
 
-- API binds to loopback by default.
+- API binds to loopback by default; non-loopback `HOST` overrides are rejected until authentication exists.
 - CORS is restricted to the local Vite development origin.
 - No account system, remote sync, telemetry, model provider key storage, or remote API calls are included.
 - Prompt content is never executed as code.
-- If the host is changed from loopback, authentication and origin-security controls must be added first.
+- Remote API exposure requires a separately designed authentication and origin-security layer.
