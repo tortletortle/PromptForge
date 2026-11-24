@@ -10,7 +10,7 @@
     "dev:api": "npm run dev -w @promptforge/api",
     "dev:web": "npm run dev -w @promptforge/web",
     "build": "npm run build -w @promptforge/core && npm run build -w @promptforge/api && npm run build -w @promptforge/web",
-    "typecheck": "npm run typecheck -w @promptforge/core && npm run typecheck -w @promptforge/api && npm run typecheck -w @promptforge/web",
+    "typecheck": "npm run build -w @promptforge/core && npm run typecheck -w @promptforge/core && npm run typecheck -w @promptforge/api && npm run typecheck -w @promptforge/web",
     "test": "npm run build -w @promptforge/core && npm run test -w @promptforge/core && npm run test -w @promptforge/api",
     "check": "npm run typecheck && npm test && npm run build"
   },
