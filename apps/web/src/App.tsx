@@ -350,7 +350,7 @@ function App() {
         ...(selectedTaskId ? { taskId: selectedTaskId } : {}),
         assetIds: selectedAssetIds,
         variables,
-        tokenBudget: Number(tokenBudget) || undefined,
+        ...(Number(tokenBudget) > 0 ? { tokenBudget: Number(tokenBudget) } : {}),
         target
       });
       setCompileResponse(response);
