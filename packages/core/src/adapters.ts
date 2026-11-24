@@ -1,10 +1,16 @@
-import type { AdapterArtifact, AdapterInfo, AdapterId, CompileResult } from "./types.js";
+import type {
+  AdapterArtifact,
+  AdapterInfo,
+  AdapterId,
+  CompileResult,
+  CompiledMessage
+} from "./types.js";
 
 export const ADAPTERS: AdapterInfo[] = [
   { id: "cursor", name: "Cursor Rules", description: "导出为 Cursor 项目规则文件。", fileExtension: ".mdc" },
   { id: "claude-code", name: "Claude Code", description: "导出为 Claude Code 项目规则文件。", fileExtension: ".md" },
   { id: "chatgpt", name: "ChatGPT", description: "生成可复制或上传的 ChatGPT 提示词文档。", fileExtension: ".md" },
-  { id: "api", name: "Generic API", description: "生成通用 Chat Completions 风格 JSON 请求体。", fileExtension: ".json" },
+  { id: "api", name: "Generic API", description: "生成保留 system/developer/user 角色的 Chat Completions 风格 JSON。", fileExtension: ".json" },
   { id: "local", name: "Local AI", description: "生成适用于本地模型的纯文本提示词。", fileExtension: ".txt" }
 ];
 
@@ -18,11 +24,17 @@ function slugify(value: string): string {
   return slug || "prompt";
 }
 
+type AdapterCompileInput = string | Pick<CompileResult, "text" | "messages">;
+
 export function createAdapterArtifact(
   target: AdapterId,
-  text: string,
+  input: AdapterCompileInput,
   metadata: { projectName?: string; taskName?: string } = {}
 ): AdapterArtifact {
+  const text = typeof input === "string" ? input : input.text;
+  const messages: CompiledMessage[] = typeof input === "string"
+    ? [{ role: "system", content: text, sourceAssetIds: [] }]
+    : input.messages;
   const project = metadata.projectName || "promptforge";
   const slug = slugify(project);
   const description = "PromptForge compiled instructions for " + project;
@@ -58,7 +70,10 @@ export function createAdapterArtifact(
       fileName = "promptforge-request-" + slug + ".json";
       mimeType = "application/json";
       content = JSON.stringify({
-        messages: [{ role: "system", content: text }],
+        messages: messages.map((message) => ({
+          role: message.role,
+          content: message.content
+        })),
         metadata: {
           generatedBy: "PromptForge",
           project: metadata.projectName ?? null,
