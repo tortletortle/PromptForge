@@ -23,7 +23,9 @@ function isPromptRole(value: unknown): value is PromptRole {
 }
 
 function compareAssets(a: PromptAsset, b: PromptAsset): number {
-  return b.priority - a.priority || a.id.localeCompare(b.id);
+  const aPriority = Number.isFinite(a.priority) ? a.priority : 0;
+  const bPriority = Number.isFinite(b.priority) ? b.priority : 0;
+  return bPriority - aPriority || a.id.localeCompare(b.id);
 }
 
 function diagnostic(
@@ -58,7 +60,7 @@ function toCompileAssetSnapshot(asset: PromptAsset): CompileAssetSnapshot {
   };
 }
 
-function validateAssets(assets: PromptAsset[]): CompileDiagnostic[] {
+function validateAssetIndex(assets: PromptAsset[]): CompileDiagnostic[] {
   const errors: CompileDiagnostic[] = [];
   const seen = new Set<string>();
 
@@ -75,7 +77,15 @@ function validateAssets(assets: PromptAsset[]): CompileDiagnostic[] {
       errors.push(diagnostic("DUPLICATE_ASSET_ID", "input", "资产 ID 重复：" + asset.id, [asset.id]));
     }
     seen.add(asset.id);
+  }
 
+  return errors;
+}
+
+function validateResolvedAssets(assets: PromptAsset[]): CompileDiagnostic[] {
+  const errors: CompileDiagnostic[] = [];
+
+  for (const asset of [...assets].sort((a, b) => a.id.localeCompare(b.id))) {
     if (!isPromptRole(asset.role)) {
       errors.push(diagnostic("INVALID_ASSET_ROLE", "input", "资产 " + asset.id + " 的角色无效。", [asset.id]));
     }
@@ -104,7 +114,9 @@ function validateAssets(assets: PromptAsset[]): CompileDiagnostic[] {
         }
       }
     }
-    if (!Array.isArray(asset.tags) || !Array.isArray(asset.conflictsWith)) {
+    if (!Array.isArray(asset.tags) || !Array.isArray(asset.conflictsWith) ||
+        asset.tags.some((tag) => typeof tag !== "string") ||
+        asset.conflictsWith.some((id) => typeof id !== "string")) {
       errors.push(diagnostic("INVALID_ASSET_METADATA", "input", "资产 " + asset.id + " 的标签或冲突列表无效。", [asset.id]));
     }
   }
@@ -160,12 +172,14 @@ function resolveDependencies(
 
     state.set(id, 1);
     stack.push(id);
-    const dependencies = [...asset.dependencies].sort((left, right) => {
-      const a = byId.get(left);
-      const b = byId.get(right);
-      if (a && b) return compareAssets(a, b);
-      return left.localeCompare(right);
-    });
+    const dependencies = (Array.isArray(asset.dependencies) ? asset.dependencies : [])
+      .filter((dependencyId): dependencyId is string => typeof dependencyId === "string")
+      .sort((left, right) => {
+        const a = byId.get(left);
+        const b = byId.get(right);
+        if (a && b) return compareAssets(a, b);
+        return left.localeCompare(right);
+      });
 
     for (const dependencyId of dependencies) visit(dependencyId, id);
 
@@ -339,7 +353,7 @@ export function compilePromptKernel(options: CompileOptions): CompileResult {
     errors.push(diagnostic("INVALID_TOKEN_COUNTER", "budget", "TokenCounter 必须提供非空 id 和 count 函数。"));
   }
 
-  errors.push(...validateAssets(assets));
+  errors.push(...validateAssetIndex(assets));
   if (errors.length > 0) {
     const manifest = createManifest([], [], [], 0, options.tokenCounter?.id ?? heuristicTokenCounter.id);
     return {
@@ -367,9 +381,25 @@ export function compilePromptKernel(options: CompileOptions): CompileResult {
 
   const resolved = resolveDependencies(assets, selectedAssetIds);
   errors.push(...resolved.errors);
+  errors.push(...validateResolvedAssets(resolved.orderedAssets));
+
+  if (errors.length > 0) {
+    const manifest = createManifest(resolved.normalizedRoots, resolved.orderedAssets, [], 0, options.tokenCounter?.id ?? heuristicTokenCounter.id);
+    return {
+      success: false,
+      text: "",
+      messages: [],
+      manifest,
+      orderedAssetIds: resolved.orderedAssets.map((asset) => asset.id),
+      tokenEstimate: 0,
+      estimateMethod: manifest.estimateMethod,
+      warnings,
+      errors
+    };
+  }
+
   errors.push(...validateRoleDependencyOrder(resolved.orderedAssets));
   errors.push(...detectConflicts(resolved.orderedAssets));
-
   if (errors.length > 0) {
     const manifest = createManifest(resolved.normalizedRoots, resolved.orderedAssets, [], 0, options.tokenCounter?.id ?? heuristicTokenCounter.id);
     return {
