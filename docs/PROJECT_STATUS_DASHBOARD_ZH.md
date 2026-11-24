@@ -73,3 +73,17 @@
 3. 为目标模型接入真实 tokenizer，并与 heuristic-v2 对照。
 4. 对 Cursor Rules 与 Claude Code 目标文件做真实项目兼容性验证。
 5. 设计提示词资产 JSON 导入/导出与数据库备份恢复。
+
+
+## Prompt Kernel 压力测试（2026-11-24）
+
+- 专项报告：[PROMPT_KERNEL_STRESS_REPORT_ZH.md](PROMPT_KERNEL_STRESS_REPORT_ZH.md)
+- 压力测试 PR：[#4](https://github.com/tortletortle/PromptForge/pull/4)，Draft，基于 `develop/prompt-kernel`。
+- [GitHub Actions Run #62：Success](https://github.com/tortletortle/PromptForge/actions/runs/45354644558)。
+- Core 31/31、API 10/10、Playwright 1/1；所有类型检查和生产构建通过。
+- 20,000 节点深度依赖从调用栈溢出修复为 88.15 ms 完成。
+- 10,000 资产平铺编译 53.66 ms；10,001 节点宽依赖 63.61 ms。
+- 50,000 个根选择条目去重 16.01 ms；10,000 资产中 5,000 对冲突检测 39.87 ms。
+- 100 个并发 API 编译请求在 102.54 ms 内完成，100 条唯一历史记录均持久化。
+- 以上为单次 GitHub Actions 测量，不构成生产 SLA。
+- 仍待进行：多进程 SQLite 竞争、真实网络压力、长时间 soak、峰值 RSS/GC/CPU 分析。

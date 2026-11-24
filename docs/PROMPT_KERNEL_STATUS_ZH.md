@@ -59,3 +59,16 @@ GitHub Actions [Run #50](https://github.com/tortletortle/PromptForge/actions/run
 3. 为不同模型接入独立 TokenCounter 实现，并用真实 tokenizer 对照 heuristic-v2。
 4. 验证 Cursor Rules 与 Claude Code 目标文件在真实项目中的加载行为。
 5. 设计提示词资产 JSON 导入/导出和数据库备份恢复。
+
+
+## 压力测试专项（2026-11-24）
+
+- 报告：[Prompt Kernel 压力测试报告](PROMPT_KERNEL_STRESS_REPORT_ZH.md)
+- 测试 PR：[#4](https://github.com/tortletortle/PromptForge/pull/4)，Draft。
+- 测试提交：`0d47b9498361c7991e2b7afcc6cdb905e397f9fb`
+- CI：[Run #62：Success](https://github.com/tortletortle/PromptForge/actions/runs/45354644558)
+- Core：31/31；API：10/10；三工作区类型检查、生产构建及浏览器 smoke test 全部通过。
+- 关键规模：10k 资产、20k 深度链、20k 深层环、10k 宽依赖、50k 选择记录、8k 变量、2.075 MB Unicode 模板、100 并发 API 请求。
+- 已修复：递归 DFS 栈溢出、O(n²) 冲突检测、O(n²) 重复根选择扫描。
+- 尚未验收：多进程 SQLite 写竞争、真实网络压测、长时间 soak、峰值 RSS/GC/CPU profile。
+- 本轮没有合并 PR #3 或 PR #4，也没有修改 main。
