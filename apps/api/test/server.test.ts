@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 import { buildServer } from "../src/server.js";
-import { createAsset, listAssets, openDatabase, type SqliteDatabase } from "../src/database.js";
+import { createAsset, listAssets, listAssetVersions, listCompileRuns, openDatabase, type SqliteDatabase } from "../src/database.js";
 
 describe("PromptForge API", () => {
   let database: SqliteDatabase;
@@ -21,15 +21,17 @@ describe("PromptForge API", () => {
     database.close();
   });
 
-  it("migrates legacy v2 assets and compile history to the role-aware kernel schema", () => {
+  it("migrates legacy v2 assets, versions, and compile history without losing data", () => {
     const directory = mkdtempSync(join(tmpdir(), "promptforge-v2-migration-"));
     const path = join(directory, "legacy.sqlite");
     const legacy = new Database(path);
     legacy.exec([
-      "CREATE TABLE prompt_assets (id TEXT PRIMARY KEY);",
+      "CREATE TABLE prompt_assets (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', content TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'General', tags_json TEXT NOT NULL DEFAULT '[]', dependencies_json TEXT NOT NULL DEFAULT '[]', conflicts_json TEXT NOT NULL DEFAULT '[]', variables_json TEXT NOT NULL DEFAULT '[]', priority INTEGER NOT NULL DEFAULT 0, version INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);",
       "CREATE TABLE prompt_asset_versions (asset_id TEXT NOT NULL, version INTEGER NOT NULL, snapshot_json TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (asset_id, version));",
-      "CREATE TABLE compile_runs (id TEXT PRIMARY KEY);",
-      "INSERT INTO prompt_asset_versions (asset_id, version, snapshot_json, created_at) VALUES ('legacy', 1, '{\"name\":\"Legacy asset\",\"content\":\"Old prompt\"}', '2026-01-01T00:00:00.000Z');",
+      "CREATE TABLE compile_runs (id TEXT PRIMARY KEY, project_id TEXT, task_id TEXT, target TEXT NOT NULL, input_json TEXT NOT NULL, output_text TEXT NOT NULL DEFAULT '', token_estimate INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL, warnings_json TEXT NOT NULL DEFAULT '[]', errors_json TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL);",
+      "INSERT INTO prompt_assets (id, name, description, content, category, tags_json, dependencies_json, conflicts_json, variables_json, priority, version, created_at, updated_at) VALUES ('legacy-asset', 'Legacy asset', '', 'Current prompt', 'General', '[]', '[]', '[]', '[]', 0, 2, '2026-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z');",
+      "INSERT INTO prompt_asset_versions (asset_id, version, snapshot_json, created_at) VALUES ('legacy-asset', 1, '{\"name\":\"Legacy asset v1\",\"description\":\"\",\"content\":\"Old prompt\",\"category\":\"General\",\"tags\":[],\"dependencies\":[],\"conflictsWith\":[],\"variables\":[],\"priority\":0}', '2026-01-01T00:00:00.000Z');",
+      "INSERT INTO compile_runs (id, project_id, task_id, target, input_json, output_text, token_estimate, status, warnings_json, errors_json, created_at) VALUES ('legacy-run', NULL, NULL, 'api', '{\"selectedAssetIds\":[\"legacy-asset\"],\"variables\":{\"audience\":\"engineers\"}}', 'Legacy output', 17, 'success', '[]', '[]', '2026-01-02T00:00:00.000Z');",
       "PRAGMA user_version = 2;"
     ].join("\n"));
     legacy.close();
@@ -41,11 +43,77 @@ describe("PromptForge API", () => {
     expect(assetColumns.map((column) => column.name)).toContain("role");
     expect(runColumns.map((column) => column.name)).toContain("messages_json");
     expect(runColumns.map((column) => column.name)).toContain("manifest_json");
-    const snapshot = migrated.prepare(
-      "SELECT snapshot_json FROM prompt_asset_versions WHERE asset_id = 'legacy' AND version = 1"
-    ).get() as { snapshot_json: string };
-    expect(JSON.parse(snapshot.snapshot_json)).toMatchObject({ role: "system" });
+
+    expect(listAssets(migrated)).toMatchObject([
+      { id: "legacy-asset", role: "system", version: 2, content: "Current prompt" }
+    ]);
+    expect(listAssetVersions(migrated, "legacy-asset")).toMatchObject([
+      { version: 1, snapshot: { role: "system", content: "Old prompt" } }
+    ]);
+    expect(listCompileRuns(migrated)).toMatchObject([
+      {
+        id: "legacy-run",
+        outputText: "Legacy output",
+        input: { selectedAssetIds: ["legacy-asset"], variables: { audience: "engineers" } },
+        messages: [],
+        manifest: {
+          selectedAssetIds: ["legacy-asset"],
+          orderedAssetIds: [],
+          resolvedAssets: [],
+          estimateMethod: "legacy-unknown"
+        }
+      }
+    ]);
+
     migrated.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
+
+  it("upgrades a legacy v1 database and backfills immutable asset versions", () => {
+    const directory = mkdtempSync(join(tmpdir(), "promptforge-v1-migration-"));
+    const path = join(directory, "legacy-v1.sqlite");
+    const legacy = new Database(path);
+    legacy.exec([
+      "CREATE TABLE prompt_assets (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', content TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'General', tags_json TEXT NOT NULL DEFAULT '[]', dependencies_json TEXT NOT NULL DEFAULT '[]', conflicts_json TEXT NOT NULL DEFAULT '[]', variables_json TEXT NOT NULL DEFAULT '[]', priority INTEGER NOT NULL DEFAULT 0, version INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);",
+      "CREATE TABLE compile_runs (id TEXT PRIMARY KEY, project_id TEXT, task_id TEXT, target TEXT NOT NULL, input_json TEXT NOT NULL, output_text TEXT NOT NULL DEFAULT '', token_estimate INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL, warnings_json TEXT NOT NULL DEFAULT '[]', errors_json TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL);",
+      "INSERT INTO prompt_assets (id, name, description, content, category, tags_json, dependencies_json, conflicts_json, variables_json, priority, version, created_at, updated_at) VALUES ('v1-asset', 'V1 asset', '', 'V1 prompt', 'General', '[]', '[]', '[]', '[]', 0, 1, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');",
+      "PRAGMA user_version = 1;"
+    ].join("\n"));
+    legacy.close();
+
+    const migrated = openDatabase(path);
+    expect(migrated.pragma("user_version", { simple: true })).toBe(4);
+    expect(listAssetVersions(migrated, "v1-asset")).toMatchObject([
+      { version: 1, snapshot: { role: "system", content: "V1 prompt" } }
+    ]);
+    migrated.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
+
+  it("rolls back the role migration when a legacy asset snapshot is corrupt", () => {
+    const directory = mkdtempSync(join(tmpdir(), "promptforge-v2-corrupt-migration-"));
+    const path = join(directory, "corrupt.sqlite");
+    const legacy = new Database(path);
+    legacy.exec([
+      "CREATE TABLE prompt_assets (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', content TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'General', tags_json TEXT NOT NULL DEFAULT '[]', dependencies_json TEXT NOT NULL DEFAULT '[]', conflicts_json TEXT NOT NULL DEFAULT '[]', variables_json TEXT NOT NULL DEFAULT '[]', priority INTEGER NOT NULL DEFAULT 0, version INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);",
+      "CREATE TABLE prompt_asset_versions (asset_id TEXT NOT NULL, version INTEGER NOT NULL, snapshot_json TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (asset_id, version));",
+      "CREATE TABLE compile_runs (id TEXT PRIMARY KEY);",
+      "INSERT INTO prompt_asset_versions (asset_id, version, snapshot_json, created_at) VALUES ('broken', 1, '{invalid-json', '2026-01-01T00:00:00.000Z');",
+      "PRAGMA user_version = 2;"
+    ].join("\n"));
+    legacy.close();
+
+    expect(() => openDatabase(path)).toThrow("无法迁移损坏的资产历史快照");
+
+    const inspect = new Database(path);
+    expect(inspect.pragma("user_version", { simple: true })).toBe(2);
+    const assetColumns = inspect.pragma("table_info(prompt_assets)") as Array<{ name: string }>;
+    expect(assetColumns.map((column) => column.name)).not.toContain("role");
+    const snapshot = inspect.prepare(
+      "SELECT snapshot_json FROM prompt_asset_versions WHERE asset_id = 'broken' AND version = 1"
+    ).get() as { snapshot_json: string };
+    expect(snapshot.snapshot_json).toBe("{invalid-json");
+    inspect.close();
     rmSync(directory, { recursive: true, force: true });
   });
 
