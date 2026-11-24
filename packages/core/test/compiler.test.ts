@@ -245,7 +245,7 @@ describe("PromptForge deterministic kernel", () => {
     });
     expect(invalidCompile.success).toBe(false);
     expect(invalidCompile.errors.map((item) => item.code)).toContain("EMPTY_ASSET_CONTENT");
-    expect(invalidCompile.manifest.resolvedAssets[0]?.content).toBe("");
+    expect(invalidCompile.manifest.resolvedAssets[0]?.content).toBe("   ");
   });
 
   it("does not auto-select unrelated assets", () => {
