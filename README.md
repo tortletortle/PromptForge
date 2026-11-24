@@ -38,7 +38,7 @@ See [Prompt Kernel design](docs/PROMPT_KERNEL_DESIGN.md). This work is in develo
 - **Core:** provider-independent deterministic prompt kernel and pure target adapters.
 - **Workspace:** npm workspaces monorepo.
 
-The API binds to `127.0.0.1` by default. There is no authentication; do not expose the service to a public network. The compiler does not send prompts to external models.
+The API binds to `127.0.0.1` by default and rejects non-loopback `HOST` overrides until remote authentication exists. There is no authentication; do not expose the service to a public network. The compiler does not send prompts to external models.
 
 ## Requirements
 
