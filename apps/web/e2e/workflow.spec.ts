@@ -78,7 +78,7 @@ test("role-aware editing persists versions and previews ordered messages with so
     if (!shouldSelect && (await checkbox.isChecked())) await checkbox.uncheck({ force: true });
   }
 
-  await page.locator('select[aria-label="目标平台"]').selectOption("api");
+  await page.getByLabel("目标平台").selectOption("api");
   await page.locator(".compile-button").click();
   await expect(page.locator(".success-pill")).toContainText("BUILD PASSED");
   await page.getByRole("tab", { name: /结构化消息/ }).click();
