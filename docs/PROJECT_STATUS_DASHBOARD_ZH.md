@@ -5,7 +5,7 @@
 ## 当前研发基线
 
 - 仓库：`tortletortle/PromptForge`
-- 稳定集成分支：`main` @ `abba0f13362df5a7b2b46adf31739705869dcdfe`
+- 稳定集成分支：`main` @ `46f0b6f3a7094de36bedd628dc88e0cc845bd1ac`
 - 开发分支：`develop/v0.1` @ `3262b16f3eb912414ee170e39da38b6854f5c576`
 - 技术栈：Node.js 22、TypeScript、React、Fastify、SQLite、Vite。
 
@@ -21,10 +21,10 @@
 
 ## 最新主线自动化验收
 
-- main 提交：`abba0f13362df5a7b2b46adf31739705869dcdfe`
-- [GitHub Actions Run #101：Success](https://github.com/tortletortle/PromptForge/actions/runs/45385688286)
+- main 提交：`46f0b6f3a7094de36bedd628dc88e0cc845bd1ac`
+- [GitHub Actions Run #112：Success](https://github.com/tortletortle/PromptForge/actions/runs/45428110613)
 - Core 测试：31/31。
-- API 测试：14/14。
+- API 测试：21/21（新增资源限制边界测试）。
 - Core / API / Web TypeScript 检查：通过。
 - Core / API / Web 生产构建：通过。
 - Playwright 浏览器 smoke test：1/1。
@@ -62,8 +62,8 @@
 | Compile Manifest | 自动化验收通过 | 完整解析资产快照 |
 | 历史快照 | 自动化验收通过 | 源资产修改或删除后历史不变 |
 | SQLite v1/v2 → v4 | 自动化验收通过 | 原子迁移、损坏快照回滚 |
-| 前端角色编辑 | 未开始 | 下一阶段任务 |
-| 结构化消息预览 | 未开始 | 下一阶段任务 |
+| 前端角色编辑 | 自动化验收通过 | PR #11 / Run #106：三角色编辑、版本历史、结构化消息预览和冲突定位 |
+| 结构化消息预览 | 自动化验收通过 | Playwright 验证角色顺序、来源追踪和失败诊断 |
 
 ## 性能与压力测试证据
 
@@ -96,10 +96,10 @@
 
 | 任务 | 优先级 | 状态 | 验收目标 |
 |---|---|---|---|
-| [PF-004 前端角色编辑](https://github.com/tortletortle/PromptForge/issues/7) | P0 | Open | 能创建和编辑三种角色资产 |
+| [PF-004 前端角色编辑](https://github.com/tortletortle/PromptForge/issues/7) | P0 | 已完成 | PR #11 / Run #106 |
 | PF-005 结构化预览与 Manifest 历史查看 | P1 | 待启动 | 能定位消息来源并复现历史输入 |
 | [PF-006 SQLite 多进程竞争与恢复](https://github.com/tortletortle/PromptForge/issues/8) | P0 | Open | 无静默丢失、迁移可恢复 |
-| [PF-007 API 输入与资源限制](https://github.com/tortletortle/PromptForge/issues/9) | P0 | Open | 超限有结构化错误，不导致进程失控 |
+| [PF-007 API 输入与资源限制](https://github.com/tortletortle/PromptForge/issues/9) | P0 | 已完成 | PR #13 / Run #111；main Run #112 |
 | PF-008 真实网络压测与 Soak | P0 | 阻塞中 | 有可复跑脚本、原始数据和性能报告 |
 | PF-009 备份恢复 | P1 | 待启动 | 数据库往返恢复通过 |
 | PF-010 JSON Bundle 导入/导出 | P1 | 待启动 | 往返一致、失败回滚 |
@@ -107,6 +107,6 @@
 | PF-012 ChatGPT / API / Local 适配器验收 | P1 | 待启动 | 契约与实际使用验证 |
 | PF-013 真实 TokenCounter | P1 | 待启动 | tokenizer 误差对照 |
 | PF-014 桌面安装包选型 | P2 | 待启动 | 干净环境安装与升级验收 |
-| [PF-015 npm lockfile 与 npm ci](https://github.com/tortletortle/PromptForge/issues/10) | P0 | Open | 依赖版本锁定、干净安装通过 |
+| [PF-015 npm lockfile 与 npm ci](https://github.com/tortletortle/PromptForge/issues/10) | P0 | 已完成 | package-lock.json / Run #109 |
 
-**当前结论：** main 已具备可持续开发的初始产品基线，并通过 Run #101。下一阶段优先完成角色化前端和可靠性专项；尚未达到正式发布条件。
+**当前结论：** main 已具备可持续开发的初始产品基线，并通过 Run #101。PF-004、PF-007、PF-015 已完成；下一阶段优先验证 SQLite 多进程竞争与崩溃恢复（PF-006）；尚未达到正式发布条件。
