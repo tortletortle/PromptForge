@@ -96,10 +96,10 @@
 
 | 任务 | 优先级 | 状态 | 验收目标 |
 |---|---|---|---|
-| PF-004 前端角色编辑 | P0 | 待启动 | 能创建和编辑三种角色资产 |
+| [PF-004 前端角色编辑](https://github.com/tortletortle/PromptForge/issues/7) | P0 | Open | 能创建和编辑三种角色资产 |
 | PF-005 结构化预览与 Manifest 历史查看 | P1 | 待启动 | 能定位消息来源并复现历史输入 |
-| PF-006 SQLite 多进程竞争与恢复 | P0 | 待启动 | 无静默丢失、迁移可恢复 |
-| PF-007 API 输入与资源限制 | P0 | 待启动 | 超限有结构化错误，不导致进程失控 |
+| [PF-006 SQLite 多进程竞争与恢复](https://github.com/tortletortle/PromptForge/issues/8) | P0 | Open | 无静默丢失、迁移可恢复 |
+| [PF-007 API 输入与资源限制](https://github.com/tortletortle/PromptForge/issues/9) | P0 | Open | 超限有结构化错误，不导致进程失控 |
 | PF-008 真实网络压测与 Soak | P0 | 阻塞中 | 有可复跑脚本、原始数据和性能报告 |
 | PF-009 备份恢复 | P1 | 待启动 | 数据库往返恢复通过 |
 | PF-010 JSON Bundle 导入/导出 | P1 | 待启动 | 往返一致、失败回滚 |
@@ -107,6 +107,6 @@
 | PF-012 ChatGPT / API / Local 适配器验收 | P1 | 待启动 | 契约与实际使用验证 |
 | PF-013 真实 TokenCounter | P1 | 待启动 | tokenizer 误差对照 |
 | PF-014 桌面安装包选型 | P2 | 待启动 | 干净环境安装与升级验收 |
-| PF-015 npm lockfile 与 npm ci | P0 | 待启动 | 依赖版本锁定、干净安装通过 |
+| [PF-015 npm lockfile 与 npm ci](https://github.com/tortletortle/PromptForge/issues/10) | P0 | Open | 依赖版本锁定、干净安装通过 |
 
 **当前结论：** main 已具备可持续开发的初始产品基线，并通过 Run #101。下一阶段优先完成角色化前端和可靠性专项；尚未达到正式发布条件。
