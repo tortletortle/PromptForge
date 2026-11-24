@@ -2,7 +2,7 @@
 
 > 版本：V1.0
 > 制定日期：2026-11-24
-> 适用仓库：\`tortletortle/PromptForge\`
+> 适用仓库：`tortletortle/PromptForge`
 > 计划性质：产品路线图与研发验收基线
 > 当前状态：计划已形成；各阶段尚未因写入本文件而自动开工或验收。
 
@@ -14,7 +14,7 @@ PromptForge 的目标不是一个简单的提示词收藏夹，也不是把一�
 
 核心产品结构：
 
-\`\`\`text
+```text
 提示词资产库
     │
     ├── 项目 / 任务上下文
@@ -35,7 +35,7 @@ PromptForge 的目标不是一个简单的提示词收藏夹，也不是把一�
     ├── ChatGPT
     ├── 通用 API / OpenAI-compatible
     └── 本地 AI 工具
-\`\`\`
+```
 
 ### 1.1 必须坚持的设计原则
 
@@ -71,11 +71,11 @@ PromptForge 的目标不是一个简单的提示词收藏夹，也不是把一�
 
 | 项目 | 当前事实 | 状态 |
 |---|---|---|
-| \`main\` | \`b4d7bef19ebad4def1ce78978cdd0afae5dea542\`，仓库初始化提交 | 尚未接收 V0.1 产品实现 |
-| V0.1 开发分支 | \`develop/v0.1\` @ \`623487200b8e343ebe23c54660af96681da78939\` | 首轮产品实现与自动化验收成果 |
-| V0.1 PR | [#1](https://github.com/tortletortle/PromptForge/pull/1)，\`develop/v0.1 → main\` | Draft，未合并 |
-| V0.2 Kernel PR | [#3](https://github.com/tortletortle/PromptForge/pull/3)，\`develop/prompt-kernel → develop/v0.1\` | Draft，未合并 |
-| Kernel 压力测试 PR | [#4](https://github.com/tortletortle/PromptForge/pull/4)，\`develop/kernel-stress → develop/prompt-kernel\` | Draft，未合并 |
+| `main` | `b4d7bef19ebad4def1ce78978cdd0afae5dea542`，仓库初始化提交 | 尚未接收 V0.1 产品实现 |
+| V0.1 开发分支 | `develop/v0.1` @ `623487200b8e343ebe23c54660af96681da78939` | 首轮产品实现与自动化验收成果 |
+| V0.1 PR | [#1](https://github.com/tortletortle/PromptForge/pull/1)，`develop/v0.1 → main` | Draft，未合并 |
+| V0.2 Kernel PR | [#3](https://github.com/tortletortle/PromptForge/pull/3)，`develop/prompt-kernel → develop/v0.1` | Draft，未合并 |
+| Kernel 压力测试 PR | [#4](https://github.com/tortletortle/PromptForge/pull/4)，`develop/kernel-stress → develop/prompt-kernel` | Draft，未合并 |
 | 压力测试最新验证 | [GitHub Actions Run #68](https://github.com/tortletortle/PromptForge/actions/runs/45354972013) | Success |
 
 ### 2.1 已有实现与证据
@@ -116,7 +116,7 @@ PromptForge 的目标不是一个简单的提示词收藏夹，也不是把一�
 
 1. PR #1、#3、#4 均未合并，主线尚未收敛。
 2. 前端尚未提供完整的 system / developer / user 角色编辑和结构化消息预览。
-3. 当前压力测试的 100 并发属于单进程 Fastify \`app.inject\`，不是多进程或真实网络压测。
+3. 当前压力测试的 100 并发属于单进程 Fastify `app.inject`，不是多进程或真实网络压测。
 4. SQLite 多进程写竞争、长时间稳定性、峰值 RSS、GC pause 和 CPU profile 尚未验收。
 5. API 请求体、单资产内容、依赖数量、变量数量和总编译输出的统一资源上限尚需审计。
 6. Cursor / Claude Code 等适配器仍需真实目标项目兼容性验证；当前不等于 IDE 插件或自动写入。
@@ -154,7 +154,7 @@ PromptForge 的目标不是一个简单的提示词收藏夹，也不是把一�
 
 依赖关系为：
 
-\`\`\`text
+```text
 develop/kernel-stress
         │ PR #4
         ▼
@@ -165,15 +165,15 @@ develop/v0.1
         │ PR #1
         ▼
 main
-\`\`\`
+```
 
 执行顺序：
 
 1. 审查 PR #4：核对迭代 DFS、循环路径、冲突检测、去重算法和压力测试；复跑 Run #68；确认压力测试报告与实际提交一致。
-2. PR #4 经人工审查后，才允许合入 \`develop/prompt-kernel\`。
+2. PR #4 经人工审查后，才允许合入 `develop/prompt-kernel`。
 3. 审查更新后的 PR #3：确认它包含 PR #4 的内核修复和测试；复跑完整 CI；检查 SQLite 迁移与旧数据兼容。
-4. PR #3 经人工审查后，才允许合入 \`develop/v0.1\`。
-5. 审查更新后的 PR #1：确认 V0.1 + V0.2 的组合工作流、文档、构建和 E2E；经人工审查后再合入 \`main\`。
+4. PR #3 经人工审查后，才允许合入 `develop/v0.1`。
+5. 审查更新后的 PR #1：确认 V0.1 + V0.2 的组合工作流、文档、构建和 E2E；经人工审查后再合入 `main`。
 6. 每次合并后记录完整 SHA、CI Run、测试数量、变更文件和看板状态。
 
 ### 验收条件
@@ -275,11 +275,11 @@ main
 - CPU 使用和事件循环延迟。
 - 编译记录数量与持久化完整性。
 
-容量阈值在首轮真实网络基准测试后确定，不能用单次 \`app.inject\` 时间冒充生产 SLA。
+容量阈值在首轮真实网络基准测试后确定，不能用单次 `app.inject` 时间冒充生产 SLA。
 
 ### REL-04：本地 API 安全
 
-- 默认仍只监听 \`127.0.0.1\`。
+- 默认仍只监听 `127.0.0.1`。
 - CORS / Origin 校验和请求体限制纳入测试。
 - 非 loopback 监听必须要求明确配置，并在启用前强制提供认证机制。
 - 不在普通日志中输出完整提示词、用户私密变量或密钥。
@@ -403,10 +403,10 @@ main
 
 所有适配器必须实现同一接口：
 
-\`\`\`text
+```text
 AdapterId + successful CompileResult + target metadata
     -> AdapterArtifact
-\`\`\`
+```
 
 统一产物字段：
 - 文件名或建议路径。
@@ -588,7 +588,7 @@ AdapterId + successful CompileResult + target metadata
 
 1. 审查 PR #4 的算法修改和压力测试证据。
 2. 将 PR #4 合入其目标分支后，重新审查 PR #3。
-3. PR #3 验收并合入 \`develop/v0.1\` 后，再审查 PR #1。
+3. PR #3 验收并合入 `develop/v0.1` 后，再审查 PR #1。
 4. 形成新的稳定基线 SHA 和总看板。
 5. 基线稳定后启动 PF-004（角色编辑与结构化预览）和 PF-006/PF-007（可靠性专项）的隔离开发。
 
