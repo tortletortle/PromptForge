@@ -3,6 +3,7 @@ import Database from "better-sqlite3";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { performance } from "node:perf_hooks";
 import { buildServer } from "../src/server.js";
 import { createAsset, listAssets, openDatabase, type SqliteDatabase } from "../src/database.js";
 
@@ -123,6 +124,55 @@ describe("PromptForge API", () => {
     expect(compiled.result.text).toContain("engineers");
     expect(compiled.artifact?.fileName).toContain("chatgpt");
   });
+
+  it("handles 100 concurrent compile requests without losing immutable history", async () => {
+    const assets = Array.from({ length: 30 }, (_, index) => createAsset(database, {
+      name: "Concurrent asset " + index,
+      role: index % 3 === 0 ? "system" : index % 3 === 1 ? "developer" : "user",
+      content: "Concurrent compile instruction " + index
+    }));
+    const assetIds = assets.map((asset) => asset.id);
+    const started = performance.now();
+    const responses = await Promise.all(Array.from({ length: 100 }, () =>
+      app.inject({
+        method: "POST",
+        url: "/api/compile",
+        payload: { assetIds, target: "api", tokenBudget: 100_000 }
+      })
+    ));
+    const elapsedMs = Number((performance.now() - started).toFixed(2));
+
+    expect(responses.every((response) => response.statusCode === 200)).toBe(true);
+    const payloads = responses.map((response) => response.json() as {
+      run: { id: string; status: string; messages: Array<{ role: string }>; manifest: { resolvedAssets: unknown[] } };
+      result: { success: boolean; orderedAssetIds: string[] };
+    });
+    const runIds = payloads.map((payload) => payload.run.id);
+
+    expect(new Set(runIds).size).toBe(100);
+    for (const payload of payloads) {
+      expect(payload.run.status).toBe("success");
+      expect(payload.result.success).toBe(true);
+      expect(payload.result.orderedAssetIds).toHaveLength(30);
+      expect(payload.run.manifest.resolvedAssets).toHaveLength(30);
+      expect(payload.run.messages.map((message) => message.role)).toEqual(["system", "developer", "user"]);
+    }
+
+    const historyResponse = await app.inject({ method: "GET", url: "/api/compile-runs" });
+    expect(historyResponse.statusCode).toBe(200);
+    const history = (historyResponse.json() as { runs: Array<{ id: string; manifest: { resolvedAssets: unknown[] } }> }).runs;
+    expect(history).toHaveLength(100);
+    expect(new Set(history.map((run) => run.id)).size).toBe(100);
+    expect(new Set(history.map((run) => run.id))).toEqual(new Set(runIds));
+    expect(history.every((run) => run.manifest.resolvedAssets.length === 30)).toBe(true);
+
+    console.info("[PROMPT_KERNEL_STRESS][api-concurrency]", JSON.stringify({
+      concurrentRequests: responses.length,
+      assetsPerCompile: assetIds.length,
+      persistedRuns: history.length,
+      elapsedMs
+    }));
+  }, 30_000);
 
   it("persists prompt roles, emits structured messages, and stores a reproducible manifest", async () => {
     const createdAssets: Array<{ id: string; role: string }> = [];
