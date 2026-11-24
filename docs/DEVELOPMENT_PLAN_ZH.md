@@ -501,10 +501,10 @@ AdapterId + successful CompileResult + target metadata
 | PF-001 | 审查并收敛 PR #4 压力测试修复 | P0 | 无 | 已完成 | [PR #4](https://github.com/tortletortle/PromptForge/pull/4) + Run #78 + 合并 SHA |
 | PF-002 | 审查并收敛 PR #3 Prompt Kernel V0.2 | P0 | PF-001 | 已完成 | [PR #3](https://github.com/tortletortle/PromptForge/pull/3) + Run #86 + 合并 SHA |
 | PF-003 | 审查并收敛 PR #1 V0.1 产品基线 | P0 | PF-002 | 已完成 | [PR #1](https://github.com/tortletortle/PromptForge/pull/1) + Run #100 + main Run #101 |
-| PF-004 | 前端角色编辑与角色化编译预览 | P0 | PF-003 | 待启动 | Playwright 端到端证据 |
+| [PF-004](https://github.com/tortletortle/PromptForge/issues/7) | 前端角色编辑与角色化编译预览 | P0 | PF-003 | Open | Playwright 端到端证据 |
 | PF-005 | Compile Manifest 历史查看和复现 | P1 | PF-004 | 待启动 | 历史快照回放测试 |
-| PF-006 | SQLite 多进程竞争和崩溃恢复 | P0 | PF-003 | 待启动 | 多进程测试日志 |
-| PF-007 | API 输入限额和资源预算 | P0 | PF-003 | 待启动 | 边界/超限测试 |
+| [PF-006](https://github.com/tortletortle/PromptForge/issues/8) | SQLite 多进程竞争和崩溃恢复 | P0 | PF-003 | Open | 多进程测试日志 |
+| [PF-007](https://github.com/tortletortle/PromptForge/issues/9) | API 输入限额和资源预算 | P0 | PF-003 | Open | 边界/超限测试 |
 | PF-008 | 真实网络压测与 30/60 分钟 Soak | P0 | PF-006、PF-007 | 阻塞中 | 原始数据、脚本、性能报告 |
 | PF-009 | 数据库备份和恢复 | P1 | PF-006 | 待启动 | 往返恢复与故障测试 |
 | PF-010 | 版本化 JSON Bundle 导入/导出 | P1 | PF-005、PF-009 | 待启动 | 往返一致性测试 |
@@ -512,7 +512,7 @@ AdapterId + successful CompileResult + target metadata
 | PF-012 | ChatGPT / API / Local 适配器验收 | P1 | PF-004 | 待启动 | 目标格式契约测试 |
 | PF-013 | 真实 TokenCounter 接口实现 | P1 | PF-004 | 待启动 | tokenizer 对照报告 |
 | PF-014 | 本地桌面安装包技术选型与原型 | P2 | PF-008、PF-009、PF-011 | 待启动 | 选型记录与安装验证 |
-| PF-015 | 提交 npm lockfile 并将 CI 安装改为 npm ci | P0 | 无 | 待启动 | lockfile、干净安装和 CI 证据 |
+| [PF-015](https://github.com/tortletortle/PromptForge/issues/10) | 提交 npm lockfile 并将 CI 安装改为 npm ci | P0 | 无 | Open | lockfile、干净安装和 CI 证据 |
 
 任务拆分规则：只有当负责人、代码范围、依赖、验收步骤和回滚边界明确时才创建独立 Issue。
 
