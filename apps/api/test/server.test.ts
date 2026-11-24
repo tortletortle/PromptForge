@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
-import { buildServer, resolveListenHost } from "../src/server.js";
+import { API_LIMITS, buildServer, resolveListenHost } from "../src/server.js";
 import { createAsset, listAssets, listAssetVersions, listCompileRuns, openDatabase, type SqliteDatabase } from "../src/database.js";
 
 describe("local API binding", () => {
@@ -455,4 +455,199 @@ describe("PromptForge API", () => {
     const tasks = tasksResponse.json() as { tasks: Array<{ context: Record<string, string> }> };
     expect(tasks.tasks[0]?.context.audience).toBe("designers");
   });
+  it("returns a structured 413 when the JSON request body exceeds the global byte limit", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/assets",
+      payload: {
+        name: "Oversized request",
+        content: "x".repeat(API_LIMITS.requestBodyBytes)
+      }
+    });
+
+    expect(response.statusCode).toBe(413);
+    expect(response.json()).toMatchObject({ code: "REQUEST_BODY_TOO_LARGE" });
+  });
+
+  it("accepts asset content at the byte boundary and rejects boundary plus one", async () => {
+    const accepted = await app.inject({
+      method: "POST",
+      url: "/api/assets",
+      payload: {
+        name: "Boundary asset",
+        content: "x".repeat(API_LIMITS.assetContentBytes)
+      }
+    });
+    expect(accepted.statusCode).toBe(201);
+
+    const rejected = await app.inject({
+      method: "POST",
+      url: "/api/assets",
+      payload: {
+        name: "Oversized asset",
+        content: "x".repeat(API_LIMITS.assetContentBytes + 1)
+      }
+    });
+    expect(rejected.statusCode).toBe(413);
+    expect(rejected.json()).toMatchObject({ code: "ASSET_CONTENT_TOO_LARGE" });
+  });
+
+  it("bounds asset metadata, variable schemas, and compile variable payloads", async () => {
+    const tooManyTags = await app.inject({
+      method: "POST",
+      url: "/api/assets",
+      payload: {
+        name: "Too many tags",
+        content: "Body",
+        tags: Array.from({ length: API_LIMITS.tagCount + 1 }, (_, index) => "tag-" + index)
+      }
+    });
+    expect(tooManyTags.statusCode).toBe(422);
+    expect(tooManyTags.json()).toMatchObject({ code: "ARRAY_ITEM_LIMIT_EXCEEDED" });
+
+    const tooManyDefinitions = await app.inject({
+      method: "POST",
+      url: "/api/assets",
+      payload: {
+        name: "Too many definitions",
+        content: "Body",
+        variables: Array.from({ length: API_LIMITS.variableDefinitionCountPerAsset + 1 }, (_, index) => ({
+          name: "variable_" + index,
+          required: false
+        }))
+      }
+    });
+    expect(tooManyDefinitions.statusCode).toBe(422);
+    expect(tooManyDefinitions.json()).toMatchObject({ code: "VARIABLE_DEFINITION_COUNT_LIMIT" });
+
+    const oversizedValue = await app.inject({
+      method: "POST",
+      url: "/api/compile",
+      payload: {
+        assetIds: [],
+        target: "api",
+        variables: { audience: "x".repeat(API_LIMITS.variableValueBytes + 1) }
+      }
+    });
+    expect(oversizedValue.statusCode).toBe(413);
+    expect(oversizedValue.json()).toMatchObject({ code: "VARIABLE_VALUE_TOO_LARGE" });
+
+    const oversizedTotal = await app.inject({
+      method: "POST",
+      url: "/api/compile",
+      payload: {
+        assetIds: [],
+        target: "api",
+        variables: Object.fromEntries(Array.from({ length: 40 }, (_, index) => [
+          "value_" + index,
+          "x".repeat(API_LIMITS.variableValueBytes)
+        ]))
+      }
+    });
+    expect(oversizedTotal.statusCode).toBe(413);
+    expect(oversizedTotal.json()).toMatchObject({ code: "VARIABLE_TOTAL_BYTES_LIMIT" });
+  });
+
+  it("rejects excessive compile roots and token budgets before compiling", async () => {
+    const tooManyRoots = await app.inject({
+      method: "POST",
+      url: "/api/compile",
+      payload: {
+        assetIds: Array.from({ length: API_LIMITS.compileRootAssetCount + 1 }, (_, index) => "missing-" + index),
+        target: "api"
+      }
+    });
+    expect(tooManyRoots.statusCode).toBe(422);
+    expect(tooManyRoots.json()).toMatchObject({ code: "COMPILE_ROOT_ASSET_LIMIT" });
+
+    const excessiveBudget = await app.inject({
+      method: "POST",
+      url: "/api/compile",
+      payload: {
+        assetIds: [],
+        target: "api",
+        tokenBudget: API_LIMITS.tokenBudget + 1
+      }
+    });
+    expect(excessiveBudget.statusCode).toBe(422);
+    expect(excessiveBudget.json()).toMatchObject({ code: "TOKEN_BUDGET_OUT_OF_RANGE" });
+  });
+
+  it("rejects dependency closures and edge counts above their configured limits", async () => {
+    let previousId: string | undefined;
+    for (let index = 0; index < API_LIMITS.compileDependencyNodes + 1; index += 1) {
+      const asset = createAsset(database, {
+        name: "Dependency node " + index,
+        content: "x",
+        dependencies: previousId ? [previousId] : []
+      });
+      previousId = asset.id;
+    }
+
+    const tooManyNodes = await app.inject({
+      method: "POST",
+      url: "/api/compile",
+      payload: { assetIds: [previousId], target: "api" }
+    });
+    expect(tooManyNodes.statusCode).toBe(422);
+    expect(tooManyNodes.json()).toMatchObject({ code: "COMPILE_DEPENDENCY_NODE_LIMIT" });
+
+    const edgeHeavy = createAsset(database, {
+      name: "Edge-heavy root",
+      content: "x",
+      dependencies: Array.from({ length: API_LIMITS.compileDependencyEdges + 1 }, (_, index) => "missing-" + index)
+    });
+    const tooManyEdges = await app.inject({
+      method: "POST",
+      url: "/api/compile",
+      payload: { assetIds: [edgeHeavy.id], target: "api" }
+    });
+    expect(tooManyEdges.statusCode).toBe(422);
+    expect(tooManyEdges.json()).toMatchObject({ code: "COMPILE_DEPENDENCY_EDGE_LIMIT" });
+  }, 30_000);
+
+  it("rejects aggregate compile source bytes above the configured budget", async () => {
+    const content = "x".repeat(API_LIMITS.assetContentBytes);
+    let previousId: string | undefined;
+    for (let index = 0; index < 5; index += 1) {
+      const asset = createAsset(database, {
+        name: "Large source " + index,
+        content,
+        dependencies: previousId ? [previousId] : []
+      });
+      previousId = asset.id;
+    }
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/compile",
+      payload: { assetIds: [previousId], target: "api" }
+    });
+    expect(response.statusCode).toBe(413);
+    expect(response.json()).toMatchObject({ code: "COMPILE_SOURCE_BYTES_LIMIT" });
+  });
+
+  it("rejects variable expansion before rendering when projected output exceeds the limit", async () => {
+    const placeholder = "{{ audience }}";
+    const occurrences = Math.ceil(API_LIMITS.compileOutputBytes / API_LIMITS.variableValueBytes) + 1;
+    const asset = createAsset(database, {
+      name: "Expansion-heavy template",
+      content: Array.from({ length: occurrences }, () => placeholder).join(" "),
+      variables: [{ name: "audience", required: true }]
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/compile",
+      payload: {
+        assetIds: [asset.id],
+        target: "api",
+        variables: { audience: "x".repeat(API_LIMITS.variableValueBytes) }
+      }
+    });
+    expect(response.statusCode).toBe(413);
+    expect(response.json()).toMatchObject({ code: "COMPILE_OUTPUT_TOO_LARGE" });
+    expect(listCompileRuns(database)).toHaveLength(0);
+  });
+
 });
