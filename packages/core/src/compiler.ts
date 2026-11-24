@@ -459,6 +459,11 @@ export function compilePromptKernel(options: CompileOptions): CompileResult {
   }
 
   const messages = createMessages(resolved.orderedAssets, renderedById);
+  const orderedAssetIds = messages.flatMap((message) => message.sourceAssetIds);
+  const assetsById = new Map(resolved.orderedAssets.map((asset) => [asset.id, asset]));
+  const emittedAssets = orderedAssetIds
+    .map((id) => assetsById.get(id))
+    .filter((asset): asset is PromptAsset => Boolean(asset));
   const text = createDisplayText(messages, options);
   const tokenCounter = options.tokenCounter ?? heuristicTokenCounter;
   let tokenEstimate = 0;
@@ -490,7 +495,7 @@ export function compilePromptKernel(options: CompileOptions): CompileResult {
 
   const manifest = createManifest(
     resolved.normalizedRoots,
-    resolved.orderedAssets,
+    emittedAssets,
     [...variableMerge.definitions.keys()],
     tokenEstimate,
     tokenCounter.id
@@ -501,7 +506,7 @@ export function compilePromptKernel(options: CompileOptions): CompileResult {
     text,
     messages,
     manifest,
-    orderedAssetIds: resolved.orderedAssets.map((asset) => asset.id),
+    orderedAssetIds,
     tokenEstimate,
     estimateMethod: tokenCounter.id,
     warnings,
