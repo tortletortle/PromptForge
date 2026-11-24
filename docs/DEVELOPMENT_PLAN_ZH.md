@@ -110,7 +110,7 @@ PromptForge 的目标不是一个简单的提示词收藏夹，也不是把一�
 - 100 个 API 并发请求及 100 条唯一编译历史记录。
 - TypeScript 检查、Core/API/Web 生产构建和 Playwright smoke test 均通过。
 
-压力测试报告：[PROMPT_KERNEL_STRESS_REPORT_ZH.md](PROMPT_KERNEL_STRESS_REPORT_ZH.md)，位于 PR #4 分支。Run #68 是该分支最新的完整 CI 验证。
+压力测试报告：[PROMPT_KERNEL_STRESS_REPORT_ZH.md](https://github.com/tortletortle/PromptForge/blob/develop/kernel-stress/docs/PROMPT_KERNEL_STRESS_REPORT_ZH.md)，位于 PR #4 分支。Run #68 是该分支最新的完整 CI 验证。
 
 ### 2.2 已知缺口
 
