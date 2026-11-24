@@ -379,13 +379,28 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   return app;
 }
 
+export function resolveListenHost(value: string | undefined): string {
+  const host = value?.trim() || "127.0.0.1";
+  if (host !== "127.0.0.1" && host !== "localhost" && host !== "::1") {
+    throw new Error(
+      "PromptForge 尚未启用远程 API 认证，只允许监听本机回环地址（127.0.0.1、localhost 或 ::1）。"
+    );
+  }
+  return host;
+}
+
 export async function startServer(): Promise<void> {
+  const host = resolveListenHost(process.env.HOST);
+  const port = Number(process.env.PORT ?? 4317);
   const dbPath = process.env.PROMPTFORGE_DB_PATH ?? resolve(process.cwd(), "data", "promptforge.sqlite");
   const app = buildServer({ dbPath, logger: true });
-  const port = Number(process.env.PORT ?? 4317);
-  const host = process.env.HOST ?? "127.0.0.1";
-  await app.listen({ port, host });
-  app.log.info("PromptForge API listening on http://" + host + ":" + port);
+  try {
+    await app.listen({ port, host });
+    app.log.info("PromptForge API listening on http://" + host + ":" + port);
+  } catch (error) {
+    await app.close();
+    throw error;
+  }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
