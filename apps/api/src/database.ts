@@ -358,28 +358,30 @@ export function getAsset(db: SqliteDatabase, id: string): PromptAsset | null {
 }
 
 export function createAsset(db: SqliteDatabase, input: PromptAssetInput): PromptAsset {
-  const id = randomUUID();
-  const now = new Date().toISOString();
-  db.prepare(
-    "INSERT INTO prompt_assets (id, name, description, content, category, tags_json, dependencies_json, conflicts_json, variables_json, priority, role, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)"
-  ).run(
-    id,
-    input.name.trim(),
-    input.description ?? "",
-    input.content,
-    input.category?.trim() || "General",
-    JSON.stringify(cleanStringArray(input.tags)),
-    JSON.stringify(cleanStringArray(input.dependencies)),
-    JSON.stringify(cleanStringArray(input.conflictsWith)),
-    JSON.stringify(input.variables ?? []),
-    Number.isFinite(input.priority) ? input.priority : 0,
-    input.role ?? "system",
-    now,
-    now
-  );
-  const asset = getAsset(db, id)!;
-  saveAssetVersion(db, asset);
-  return asset;
+  return db.transaction(() => {
+    const id = randomUUID();
+    const now = new Date().toISOString();
+    db.prepare(
+      "INSERT INTO prompt_assets (id, name, description, content, category, tags_json, dependencies_json, conflicts_json, variables_json, priority, role, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)"
+    ).run(
+      id,
+      input.name.trim(),
+      input.description ?? "",
+      input.content,
+      input.category?.trim() || "General",
+      JSON.stringify(cleanStringArray(input.tags)),
+      JSON.stringify(cleanStringArray(input.dependencies)),
+      JSON.stringify(cleanStringArray(input.conflictsWith)),
+      JSON.stringify(input.variables ?? []),
+      Number.isFinite(input.priority) ? input.priority : 0,
+      input.role ?? "system",
+      now,
+      now
+    );
+    const asset = getAsset(db, id)!;
+    saveAssetVersion(db, asset);
+    return asset;
+  }).immediate();
 }
 
 export function updateAsset(
@@ -387,43 +389,45 @@ export function updateAsset(
   id: string,
   input: Partial<PromptAssetInput>
 ): PromptAsset | null {
-  const existing = getAsset(db, id);
-  if (!existing) return null;
+  return db.transaction(() => {
+    const existing = getAsset(db, id);
+    if (!existing) return null;
 
-  const next = {
-    name: input.name?.trim() ?? existing.name,
-    role: input.role ?? existing.role,
-    description: input.description ?? existing.description,
-    content: input.content ?? existing.content,
-    category: input.category?.trim() || existing.category,
-    tags: input.tags ? cleanStringArray(input.tags) : existing.tags,
-    dependencies: input.dependencies ? cleanStringArray(input.dependencies) : existing.dependencies,
-    conflictsWith: input.conflictsWith ? cleanStringArray(input.conflictsWith) : existing.conflictsWith,
-    variables: input.variables ?? existing.variables,
-    priority: input.priority !== undefined && Number.isFinite(input.priority) ? input.priority : existing.priority
-  };
-  const now = new Date().toISOString();
+    const next = {
+      name: input.name?.trim() ?? existing.name,
+      role: input.role ?? existing.role,
+      description: input.description ?? existing.description,
+      content: input.content ?? existing.content,
+      category: input.category?.trim() || existing.category,
+      tags: input.tags ? cleanStringArray(input.tags) : existing.tags,
+      dependencies: input.dependencies ? cleanStringArray(input.dependencies) : existing.dependencies,
+      conflictsWith: input.conflictsWith ? cleanStringArray(input.conflictsWith) : existing.conflictsWith,
+      variables: input.variables ?? existing.variables,
+      priority: input.priority !== undefined && Number.isFinite(input.priority) ? input.priority : existing.priority
+    };
+    const now = new Date().toISOString();
 
-  db.prepare(
-    "UPDATE prompt_assets SET name = ?, role = ?, description = ?, content = ?, category = ?, tags_json = ?, dependencies_json = ?, conflicts_json = ?, variables_json = ?, priority = ?, version = version + 1, updated_at = ? WHERE id = ?"
-  ).run(
-    next.name,
-    next.role,
-    next.description,
-    next.content,
-    next.category,
-    JSON.stringify(next.tags),
-    JSON.stringify(next.dependencies),
-    JSON.stringify(next.conflictsWith),
-    JSON.stringify(next.variables),
-    next.priority,
-    now,
-    id
-  );
+    db.prepare(
+      "UPDATE prompt_assets SET name = ?, role = ?, description = ?, content = ?, category = ?, tags_json = ?, dependencies_json = ?, conflicts_json = ?, variables_json = ?, priority = ?, version = version + 1, updated_at = ? WHERE id = ?"
+    ).run(
+      next.name,
+      next.role,
+      next.description,
+      next.content,
+      next.category,
+      JSON.stringify(next.tags),
+      JSON.stringify(next.dependencies),
+      JSON.stringify(next.conflictsWith),
+      JSON.stringify(next.variables),
+      next.priority,
+      now,
+      id
+    );
 
-  const updated = getAsset(db, id);
-  if (updated) saveAssetVersion(db, updated);
-  return updated;
+    const updated = getAsset(db, id);
+    if (updated) saveAssetVersion(db, updated);
+    return updated;
+  }).immediate();
 }
 
 export function listAssetVersions(db: SqliteDatabase, assetId: string): PromptAssetVersion[] {
