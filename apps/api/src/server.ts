@@ -575,7 +575,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       const selectedAssetIds = stringArray(
         request.body.assetIds,
         "assetIds",
-        API_LIMITS.compileRootAssetCount,
+        API_LIMITS.requestBodyBytes,
         API_LIMITS.dependencyIdBytes
       ) ?? task?.selectedAssetIds ?? [];
       const requestVariables = parseStringRecord(request.body.variables, "variables");
