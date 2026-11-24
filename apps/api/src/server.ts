@@ -5,11 +5,13 @@ import { pathToFileURL } from "node:url";
 import {
   ADAPTER_IDS,
   ADAPTERS,
+  PROMPT_ROLES,
   compilePromptPackage,
   createAdapterArtifact,
   type AdapterId,
   type PromptAssetInput,
   type PromptProjectInput,
+  type PromptRole,
   type PromptTaskInput,
   type VariableDefinition
 } from "@promptforge/core";
@@ -72,6 +74,14 @@ function stringArray(value: unknown, field: string): string[] | undefined {
   return value as string[];
 }
 
+function parsePromptRole(value: unknown): PromptRole | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || !(PROMPT_ROLES as readonly string[]).includes(value)) {
+    throw new Error("role 必须是 system、developer 或 user。");
+  }
+  return value as PromptRole;
+}
+
 function parseVariables(value: unknown): VariableDefinition[] | undefined {
   if (value === undefined) return undefined;
   if (!Array.isArray(value)) throw new Error("variables 必须是数组。");
@@ -107,6 +117,7 @@ function parseAssetCreate(value: unknown): PromptAssetInput {
   if (!isRecord(value)) throw new Error("请求体格式无效。");
   const description = optionalString(value.description, "description");
   const category = optionalString(value.category, "category");
+  const role = parsePromptRole(value.role);
   const tags = stringArray(value.tags, "tags");
   const dependencies = stringArray(value.dependencies, "dependencies");
   const conflictsWith = stringArray(value.conflictsWith, "conflictsWith");
@@ -116,6 +127,7 @@ function parseAssetCreate(value: unknown): PromptAssetInput {
   }
   return {
     name: requiredString(value.name, "name"),
+    ...(role !== undefined ? { role } : {}),
     content: requiredText(value.content, "content"),
     ...(description !== undefined ? { description } : {}),
     ...(category !== undefined ? { category } : {}),
@@ -131,6 +143,7 @@ function parseAssetUpdate(value: unknown): Partial<PromptAssetInput> {
   if (!isRecord(value)) throw new Error("请求体格式无效。");
   const result: Partial<PromptAssetInput> = {};
   if (value.name !== undefined) result.name = requiredString(value.name, "name");
+  if (value.role !== undefined) result.role = parsePromptRole(value.role)!;
   if (value.content !== undefined) result.content = requiredText(value.content, "content");
   if (value.description !== undefined) {
     const description = optionalString(value.description, "description");
@@ -321,7 +334,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       });
 
       const artifact = result.success
-        ? createAdapterArtifact(targetValue as AdapterId, result.text, {
+        ? createAdapterArtifact(targetValue as AdapterId, result, {
             ...(project ? { projectName: project.name } : {}),
             ...(task ? { taskName: task.name } : {})
           })
@@ -337,6 +350,8 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
           ...(tokenBudget !== undefined ? { tokenBudget: Math.floor(tokenBudget) } : {})
         },
         outputText: result.text,
+        messages: result.messages,
+        manifest: result.manifest,
         tokenEstimate: result.tokenEstimate,
         status: result.success ? "success" : "failed",
         warnings: result.warnings,
