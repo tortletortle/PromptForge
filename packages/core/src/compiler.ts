@@ -131,6 +131,26 @@ function validateResolvedAssets(assets: PromptAsset[]): CompileDiagnostic[] {
   return errors;
 }
 
+interface DependencyFrame {
+  asset: PromptAsset;
+  dependencies: string[];
+  nextDependencyIndex: number;
+}
+
+function sortedDependencies(
+  asset: PromptAsset,
+  byId: Map<string, PromptAsset>
+): string[] {
+  return (Array.isArray(asset.dependencies) ? asset.dependencies : [])
+    .filter((dependencyId): dependencyId is string => typeof dependencyId === "string")
+    .sort((left, right) => {
+      const a = byId.get(left);
+      const b = byId.get(right);
+      if (a && b) return compareAssets(a, b);
+      return left.localeCompare(right);
+    });
+}
+
 function resolveDependencies(
   assets: PromptAsset[],
   selectedAssetIds: string[]
@@ -139,7 +159,8 @@ function resolveDependencies(
   const state = new Map<string, 0 | 1 | 2>();
   const orderedAssets: PromptAsset[] = [];
   const errors: CompileDiagnostic[] = [];
-  const stack: string[] = [];
+  const activePath: string[] = [];
+  const activePathIndex = new Map<string, number>();
   const uniqueSelected = [...new Set(selectedAssetIds)];
   const roots = uniqueSelected
     .map((id) => byId.get(id))
@@ -151,51 +172,72 @@ function resolveDependencies(
   ];
 
   for (const id of uniqueSelected.filter((item) => !byId.has(item)).sort((a, b) => a.localeCompare(b))) {
-    if (!byId.has(id)) {
-      errors.push(diagnostic("ASSET_NOT_FOUND", "graph", "选择的模块不存在：" + id, [id]));
-    }
+    errors.push(diagnostic("ASSET_NOT_FOUND", "graph", "选择的模块不存在：" + id, [id]));
   }
 
-  const visit = (id: string, sourceId?: string): void => {
-    const asset = byId.get(id);
-    if (!asset) {
-      errors.push(diagnostic(
-        sourceId ? "MISSING_DEPENDENCY" : "ASSET_NOT_FOUND",
-        "graph",
-        sourceId ? "模块 " + sourceId + " 依赖不存在的模块 " + id : "选择的模块不存在：" + id,
-        sourceId ? [sourceId, id] : [id]
-      ));
-      return;
+  const visit = (root: PromptAsset): void => {
+    if (state.get(root.id) === 2) return;
+
+    state.set(root.id, 1);
+    activePathIndex.set(root.id, activePath.length);
+    activePath.push(root.id);
+    const frames: DependencyFrame[] = [{
+      asset: root,
+      dependencies: sortedDependencies(root, byId),
+      nextDependencyIndex: 0
+    }];
+
+    while (frames.length > 0) {
+      const frame = frames[frames.length - 1]!;
+      if (frame.nextDependencyIndex < frame.dependencies.length) {
+        const dependencyId = frame.dependencies[frame.nextDependencyIndex]!;
+        frame.nextDependencyIndex += 1;
+        const dependency = byId.get(dependencyId);
+
+        if (!dependency) {
+          errors.push(diagnostic(
+            "MISSING_DEPENDENCY",
+            "graph",
+            "模块 " + frame.asset.id + " 依赖不存在的模块 " + dependencyId,
+            [frame.asset.id, dependencyId]
+          ));
+          continue;
+        }
+
+        const current = state.get(dependencyId) ?? 0;
+        if (current === 2) continue;
+        if (current === 1) {
+          const cycleStart = activePathIndex.get(dependencyId) ?? 0;
+          const cycle = [...activePath.slice(cycleStart), dependencyId];
+          errors.push(diagnostic(
+            "DEPENDENCY_CYCLE",
+            "graph",
+            "检测到循环依赖：" + cycle.join(" → "),
+            cycle
+          ));
+          continue;
+        }
+
+        state.set(dependencyId, 1);
+        activePathIndex.set(dependencyId, activePath.length);
+        activePath.push(dependencyId);
+        frames.push({
+          asset: dependency,
+          dependencies: sortedDependencies(dependency, byId),
+          nextDependencyIndex: 0
+        });
+        continue;
+      }
+
+      frames.pop();
+      activePath.pop();
+      activePathIndex.delete(frame.asset.id);
+      state.set(frame.asset.id, 2);
+      orderedAssets.push(frame.asset);
     }
-
-    const current = state.get(id) ?? 0;
-    if (current === 2) return;
-    if (current === 1) {
-      const start = stack.indexOf(id);
-      const cycle = [...stack.slice(start < 0 ? 0 : start), id];
-      errors.push(diagnostic("DEPENDENCY_CYCLE", "graph", "检测到循环依赖：" + cycle.join(" → "), cycle));
-      return;
-    }
-
-    state.set(id, 1);
-    stack.push(id);
-    const dependencies = (Array.isArray(asset.dependencies) ? asset.dependencies : [])
-      .filter((dependencyId): dependencyId is string => typeof dependencyId === "string")
-      .sort((left, right) => {
-        const a = byId.get(left);
-        const b = byId.get(right);
-        if (a && b) return compareAssets(a, b);
-        return left.localeCompare(right);
-      });
-
-    for (const dependencyId of dependencies) visit(dependencyId, id);
-
-    stack.pop();
-    state.set(id, 2);
-    orderedAssets.push(asset);
   };
 
-  for (const root of roots) visit(root.id);
+  for (const root of roots) visit(root);
 
   const uniqueErrors = new Map<string, CompileDiagnostic>();
   for (const error of errors) {
@@ -234,25 +276,30 @@ function validateRoleDependencyOrder(assets: PromptAsset[]): CompileDiagnostic[]
 }
 
 function detectConflicts(assets: PromptAsset[]): CompileDiagnostic[] {
-  const errors: CompileDiagnostic[] = [];
-  for (let leftIndex = 0; leftIndex < assets.length; leftIndex += 1) {
-    const left = assets[leftIndex];
-    if (!left) continue;
+  const byId = new Map(assets.map((asset) => [asset.id, asset]));
+  const pairs = new Map<string, [PromptAsset, PromptAsset]>();
 
-    for (let rightIndex = leftIndex + 1; rightIndex < assets.length; rightIndex += 1) {
-      const right = assets[rightIndex];
-      if (!right) continue;
-      if (left.conflictsWith.includes(right.id) || right.conflictsWith.includes(left.id)) {
-        errors.push(diagnostic(
-          "ASSET_CONFLICT",
-          "graph",
-          "模块冲突：" + left.name + " 与 " + right.name,
-          [left.id, right.id]
-        ));
-      }
+  for (const asset of assets) {
+    for (const conflictId of asset.conflictsWith) {
+      const other = byId.get(conflictId);
+      if (!other || other.id === asset.id) continue;
+
+      const pair: [PromptAsset, PromptAsset] = asset.id < other.id
+        ? [asset, other]
+        : [other, asset];
+      const key = JSON.stringify([pair[0].id, pair[1].id]);
+      pairs.set(key, pair);
     }
   }
-  return errors;
+
+  return [...pairs.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([, pair]) => diagnostic(
+      "ASSET_CONFLICT",
+      "graph",
+      "模块冲突：" + pair[0].name + " 与 " + pair[1].name,
+      [pair[0].id, pair[1].id]
+    ));
 }
 
 export function estimateTokens(text: string): number {
@@ -376,13 +423,19 @@ export function compilePromptKernel(options: CompileOptions): CompileResult {
     };
   }
 
-  const duplicateRoots = [...new Set(selectedAssetIds.filter((id, index) => selectedAssetIds.indexOf(id) !== index))].sort((a, b) => a.localeCompare(b));
+  const seenSelectedIds = new Set<string>();
+  const duplicateSelectedIds = new Set<string>();
+  for (const id of selectedAssetIds) {
+    if (seenSelectedIds.has(id)) duplicateSelectedIds.add(id);
+    else seenSelectedIds.add(id);
+  }
+  const duplicateRoots = [...duplicateSelectedIds].sort((a, b) => a.localeCompare(b));
   if (duplicateRoots.length > 0) {
     warnings.push({
       code: "DUPLICATE_SELECTED_ASSET",
       stage: "input",
       severity: "warning",
-      message: "重复选择的模块已自动去重：" + [...new Set(duplicateRoots)].sort().join(", ")
+      message: "重复选择的模块已自动去重：" + duplicateRoots.join(", ")
     });
   }
 
