@@ -71,3 +71,14 @@
 3. 设计提示词资产 JSON 导入/导出与数据库备份恢复，保证本地数据可迁移。
 4. 对 Cursor Rules 与 Claude Code 目标文件做真实项目兼容性验证。
 5. 根据下一轮需求再确定 V0.2 范围，不将未实现项目提前标记为完成。
+
+
+## Prompt Kernel V0.2 专项
+
+- 独立研发分支：`feature/prompt-kernel`
+- 基线：`develop/v0.1` @ `4b76bcc60b0465d796a24e199593c5123dd59b58`
+- 设计文档：[Prompt Kernel V0.2](PROMPT_KERNEL_DESIGN.md)
+- 专项状态：[Prompt Kernel 研发状态](PROMPT_KERNEL_STATUS_ZH.md)
+- 目标：角色化消息、严格变量校验、可注入 TokenCounter、完整编译 manifest、SQLite 兼容迁移。
+- 当前状态：实现已写入功能分支，等待新分支 CI 验证；未合并、未宣称验收完成。
+- 本轮不改 UI，不接 IDE，不连接模型服务。
