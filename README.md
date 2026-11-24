@@ -2,9 +2,11 @@
 
 > Local-first prompt asset management and deterministic prompt compilation.
 
-PromptForge turns reusable prompts into versioned assets, composes them with project/task context, validates dependencies and conflicts, and exports deterministic prompt packages for different AI workflows.
+PromptForge turns reusable prompts into versioned assets, composes them with explicit project/task context, validates dependencies and conflicts, and exports deterministic prompt packages for different AI workflows.
 
-## V0.1 scope
+## Current product baseline
+
+V0.1 includes:
 
 - Prompt asset CRUD, categories, tags, search, priority, immutable version snapshots, and restore-as-new-version.
 - Project and task context with reusable string variables.
@@ -15,17 +17,28 @@ PromptForge turns reusable prompts into versioned assets, composes them with pro
 - Compile preview, clipboard copy, target artifact export, and persisted compile history.
 - Initial adapters for Cursor Rules, Claude Code, ChatGPT, generic API JSON, and local AI text workflows.
 
-V0.1 does **not** include cloud sync, team collaboration, marketplace, vector search, model training, provider-specific live API calls, or unattended edits to external project files.
+## Prompt Kernel V0.2 development
+
+The kernel is being upgraded independently of the UI:
+
+- Structured `system`, `developer`, and `user` roles.
+- Deterministic dependency and role-order validation.
+- Strict variable schema validation and fail-closed default conflict handling.
+- Injectable `TokenCounter` interface; default `heuristic-v2` is approximate.
+- Complete compile manifests containing exact resolved asset snapshots.
+- Structured messages and manifests persisted in compile history.
+
+See [Prompt Kernel design](docs/PROMPT_KERNEL_DESIGN.md). This work is in development until its CI and migration tests pass.
 
 ## Architecture
 
 - **Frontend:** React 19 + TypeScript + Vite.
 - **API:** Node.js 22+ + TypeScript + Fastify.
 - **Persistence:** SQLite via better-sqlite3, with schema versioning through SQLite `user_version`.
-- **Core:** framework-independent dependency resolver, template renderer, deterministic compiler, token estimator, and target adapters.
+- **Core:** provider-independent deterministic prompt kernel and pure target adapters.
 - **Workspace:** npm workspaces monorepo.
 
-The API binds to `127.0.0.1` by default. There is no authentication in V0.1; do not expose the service to a public network. Prompt content remains in the local SQLite database and is not sent to an external model by the compiler.
+The API binds to `127.0.0.1` by default. There is no authentication; do not expose the service to a public network. The compiler does not send prompts to external models.
 
 ## Requirements
 
@@ -54,16 +67,16 @@ npm run build
 npm run e2e
 ```
 
-`npm run check` runs type checks, tests, and production builds. `npm run e2e` launches the local API and web app and verifies the browser workflow from asset creation through export and history.
+`npm run check` runs type checks, tests, and production builds.
 
 ## Token estimate limitation
 
-The built-in `heuristic-v1` estimator is a rough planning aid, not a model tokenizer. Actual token counts vary by model, tokenizer, language, and provider. Treat the estimate as a budget warning, not a billing or context-window guarantee.
+The built-in `heuristic-v2` estimator is a rough planning aid, not a model tokenizer. Actual token counts vary by model, tokenizer, language, and provider. Provider-specific tokenizers can be supplied through the `TokenCounter` interface when an integration is added. Treat the heuristic as a budget warning, not a billing or context-window guarantee.
 
 ## Adapter boundary
 
-Adapters generate downloadable artifacts only. Cursor and Claude Code outputs are suggested files; PromptForge does not overwrite project files or install IDE integrations in V0.1. The generic API adapter emits a message payload but does not select a model, add credentials, or send a request.
+Adapters generate downloadable artifacts only. Cursor and Claude Code outputs are suggested files; PromptForge does not overwrite project files or install IDE integrations. The generic API adapter preserves role-separated messages but does not select a model, add credentials, or send a request.
 
 ## Project status
 
-See [the V0.1 project dashboard](docs/PROJECT_STATUS_DASHBOARD_ZH.md), [product scope](docs/PRODUCT_SCOPE_V0.1.md), and [architecture](docs/ARCHITECTURE.md).
+See [the V0.1 project dashboard](docs/PROJECT_STATUS_DASHBOARD_ZH.md), [product scope](docs/PRODUCT_SCOPE_V0.1.md), [architecture](docs/ARCHITECTURE.md), and [Prompt Kernel design](docs/PROMPT_KERNEL_DESIGN.md).

@@ -2,6 +2,10 @@ export const ADAPTER_IDS = ["cursor", "claude-code", "chatgpt", "api", "local"] 
 
 export type AdapterId = (typeof ADAPTER_IDS)[number];
 
+export const PROMPT_ROLES = ["system", "developer", "user"] as const;
+
+export type PromptRole = (typeof PROMPT_ROLES)[number];
+
 export interface VariableDefinition {
   name: string;
   description?: string;
@@ -11,6 +15,7 @@ export interface VariableDefinition {
 
 export interface PromptAsset {
   id: string;
+  role: PromptRole;
   name: string;
   description: string;
   content: string;
@@ -26,6 +31,7 @@ export interface PromptAsset {
 }
 
 export interface PromptAssetSnapshot {
+  role: PromptRole;
   name: string;
   description: string;
   content: string;
@@ -46,6 +52,7 @@ export interface PromptAssetVersion {
 
 export interface PromptAssetInput {
   name: string;
+  role?: PromptRole;
   description?: string;
   content: string;
   category?: string;
@@ -93,9 +100,36 @@ export type DiagnosticSeverity = "error" | "warning";
 
 export interface CompileDiagnostic {
   code: string;
+  stage?: "input" | "graph" | "variables" | "render" | "budget";
   message: string;
   severity: DiagnosticSeverity;
   assetIds?: string[];
+}
+
+export interface CompiledMessage {
+  role: PromptRole;
+  content: string;
+  sourceAssetIds: string[];
+}
+
+export interface CompileAssetSnapshot extends PromptAssetSnapshot {
+  id: string;
+  version: number;
+}
+
+export interface CompileManifest {
+  schemaVersion: 1;
+  selectedAssetIds: string[];
+  orderedAssetIds: string[];
+  resolvedAssets: CompileAssetSnapshot[];
+  variableNames: string[];
+  tokenEstimate: number;
+  estimateMethod: string;
+}
+
+export interface TokenCounter {
+  id: string;
+  count(messages: readonly CompiledMessage[]): number;
 }
 
 export interface CompileOptions {
@@ -105,14 +139,17 @@ export interface CompileOptions {
   tokenBudget?: number;
   projectName?: string;
   taskName?: string;
+  tokenCounter?: TokenCounter;
 }
 
 export interface CompileResult {
   success: boolean;
   text: string;
+  messages: CompiledMessage[];
+  manifest: CompileManifest;
   orderedAssetIds: string[];
   tokenEstimate: number;
-  estimateMethod: "heuristic-v1";
+  estimateMethod: string;
   warnings: CompileDiagnostic[];
   errors: CompileDiagnostic[];
 }
@@ -143,6 +180,8 @@ export interface CompileRun {
     tokenBudget?: number;
   };
   outputText: string;
+  messages: CompiledMessage[];
+  manifest: CompileManifest;
   tokenEstimate: number;
   status: "success" | "failed";
   warnings: CompileDiagnostic[];
