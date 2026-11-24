@@ -140,6 +140,76 @@ describe("Prompt Kernel stress and scalability", () => {
     }));
   }, 60_000);
 
+  it("detects a 20k-node cycle without recursion or losing the cycle path", () => {
+    const size = 20_000;
+    const assets = Array.from({ length: size }, (_, index) =>
+      makeAsset(index, {
+        dependencies: index === 0
+          ? ["asset-" + String(size - 1).padStart(6, "0")]
+          : ["asset-" + String(index - 1).padStart(6, "0")]
+      })
+    );
+
+    const started = performance.now();
+    const result = compilePromptKernel({
+      assets,
+      selectedAssetIds: ["asset-" + String(size - 1).padStart(6, "0")]
+    });
+    const elapsedMs = Number((performance.now() - started).toFixed(2));
+
+    expect(result.success).toBe(false);
+    const cycle = result.errors.find((error) => error.code === "DEPENDENCY_CYCLE");
+    expect(cycle).toBeDefined();
+    expect(cycle?.assetIds).toHaveLength(size + 1);
+    console.info("[PROMPT_KERNEL_STRESS][deep-cycle]", JSON.stringify({
+      seed: 20261124,
+      nodes: size,
+      cyclePathEntries: cycle?.assetIds?.length ?? 0,
+      elapsedMs
+    }));
+  }, 60_000);
+
+  it("reports 5k disjoint conflicts without pairwise asset scanning", () => {
+    const pairCount = 5_000;
+    const assets = Array.from({ length: pairCount * 2 }, (_, index) => {
+      const partnerIndex = index % 2 === 0 ? index + 1 : index - 1;
+      const partnerId = "asset-" + String(partnerIndex).padStart(6, "0");
+      return makeAsset(index, { conflictsWith: [partnerId] });
+    });
+
+    const started = performance.now();
+    const result = compilePromptKernel({
+      assets,
+      selectedAssetIds: assets.map((asset) => asset.id)
+    });
+    const elapsedMs = Number((performance.now() - started).toFixed(2));
+    const conflicts = result.errors.filter((error) => error.code === "ASSET_CONFLICT");
+
+    expect(result.success).toBe(false);
+    expect(conflicts).toHaveLength(pairCount);
+    expect(new Set(conflicts.map((error) => JSON.stringify(error.assetIds))).size).toBe(pairCount);
+    console.info("[PROMPT_KERNEL_STRESS][conflict-edges]", JSON.stringify({
+      seed: 20261124,
+      assets: assets.length,
+      conflictEdges: pairCount,
+      diagnostics: conflicts.length,
+      elapsedMs
+    }));
+  }, 60_000);
+
+  it("fails safely on malformed dependency metadata instead of throwing", () => {
+    const malformed = makeAsset(0, {
+      dependencies: null as unknown as string[]
+    });
+    const result = compilePromptKernel({
+      assets: [malformed],
+      selectedAssetIds: [malformed.id]
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.errors.map((error) => error.code)).toContain("INVALID_ASSET_DEPENDENCIES");
+  });
+
   it("compiles 8k distinct variables across 1k assets", () => {
     const variableCountPerAsset = 8;
     const assetCount = 1_000;
