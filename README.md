@@ -17,18 +17,19 @@ V0.1 includes:
 - Compile preview, clipboard copy, target artifact export, and persisted compile history.
 - Initial adapters for Cursor Rules, Claude Code, ChatGPT, generic API JSON, and local AI text workflows.
 
-## Prompt Kernel V0.2 development
+## Prompt Kernel V0.2
 
-The kernel is being upgraded independently of the UI:
+The role-aware deterministic Prompt Kernel is integrated into `develop/v0.1` and has passed the current CI and migration tests:
 
 - Structured `system`, `developer`, and `user` roles.
 - Deterministic dependency and role-order validation.
 - Strict variable schema validation and fail-closed default conflict handling.
 - Injectable `TokenCounter` interface; default `heuristic-v2` is approximate.
-- Complete compile manifests containing exact resolved asset snapshots.
+- Compile manifests containing exact resolved asset snapshots.
 - Structured messages and manifests persisted in compile history.
+- Atomic SQLite v1/v2 → v4 migrations and rollback on corrupt legacy snapshots.
 
-See [Prompt Kernel design](docs/PROMPT_KERNEL_DESIGN.md). This work is in development until its CI and migration tests pass.
+The frontend role editor and structured-message history viewer are still pending. See [Prompt Kernel design](docs/PROMPT_KERNEL_DESIGN.md) and [Kernel status](docs/PROMPT_KERNEL_STATUS_ZH.md).
 
 ## Architecture
 
@@ -38,7 +39,7 @@ See [Prompt Kernel design](docs/PROMPT_KERNEL_DESIGN.md). This work is in develo
 - **Core:** provider-independent deterministic prompt kernel and pure target adapters.
 - **Workspace:** npm workspaces monorepo.
 
-The API binds to `127.0.0.1` by default and rejects non-loopback `HOST` overrides until remote authentication exists. There is no authentication; do not expose the service to a public network. The compiler does not send prompts to external models.
+The API binds to loopback by default and rejects non-loopback `HOST` overrides until remote authentication exists. There is no authentication; do not expose the service to a public network. The compiler does not send prompts to external models.
 
 ## Requirements
 
@@ -79,4 +80,4 @@ Adapters generate downloadable artifacts only. Cursor and Claude Code outputs ar
 
 ## Project status
 
-See [the V0.1 project dashboard](docs/PROJECT_STATUS_DASHBOARD_ZH.md), [product scope](docs/PRODUCT_SCOPE_V0.1.md), [architecture](docs/ARCHITECTURE.md), and [Prompt Kernel design](docs/PROMPT_KERNEL_DESIGN.md).
+See the [project dashboard](docs/PROJECT_STATUS_DASHBOARD_ZH.md), [overall development plan](docs/DEVELOPMENT_PLAN_ZH.md), [product scope](docs/PRODUCT_SCOPE_V0.1.md), and [architecture](docs/ARCHITECTURE.md).
