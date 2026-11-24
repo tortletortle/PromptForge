@@ -163,8 +163,8 @@ describe("PromptForge API", () => {
     expect(compiled.run.messages).toEqual(compiled.result.messages);
     expect(compiled.run.manifest.schemaVersion).toBe(1);
     expect(compiled.run.manifest.resolvedAssets).toHaveLength(3);
-    expect(compiled.run.manifest.resolvedAssets[1]).toMatchObject({
-      id: createdAssets[1]?.id,
+    const developerSnapshot = compiled.run.manifest.resolvedAssets.find((asset) => asset.id === createdAssets[1]?.id);
+    expect(developerSnapshot).toMatchObject({
       role: "developer",
       content: "Developer policy"
     });
