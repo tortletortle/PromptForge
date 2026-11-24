@@ -1,0 +1,29 @@
+{
+  "name": "promptforge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first prompt asset management and deterministic prompt compilation.",
+  "workspaces": ["apps/*", "packages/*"],
+  "engines": { "node": ">=22.0.0" },
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm run dev -w @promptforge/api",
+    "dev:web": "npm run dev -w @promptforge/web",
+    "build": "npm run build -w @promptforge/core && npm run build -w @promptforge/api && npm run build -w @promptforge/web",
+    "typecheck": "npm run typecheck -w @promptforge/core && npm run typecheck -w @promptforge/api && npm run typecheck -w @promptforge/web",
+    "test": "npm run build -w @promptforge/core && npm run test -w @promptforge/core && npm run test -w @promptforge/api",
+    "check": "npm run typecheck && npm test && npm run build"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.13.4",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0",
+    "vitest": "^3.0.8"
+  }
+}
