@@ -1,5 +1,5 @@
 import cors from "@fastify/cors";
-import Fastify, { type FastifyInstance, type FastifyReply } from "fastify";
+import Fastify, { type FastifyError, type FastifyInstance, type FastifyReply } from "fastify";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -106,7 +106,7 @@ function isRecord(value: unknown): value is JsonRecord {
 function requiredString(
   value: unknown,
   field: string,
-  maxBytes = API_LIMITS.assetNameBytes
+  maxBytes: number = API_LIMITS.assetNameBytes
 ): string {
   if (typeof value !== "string" || !value.trim()) {
     throw new Error(field + " 必须是非空字符串。");
@@ -119,7 +119,7 @@ function requiredString(
 function requiredText(
   value: unknown,
   field: string,
-  maxBytes = API_LIMITS.assetContentBytes
+  maxBytes: number = API_LIMITS.assetContentBytes
 ): string {
   if (typeof value !== "string" || !value.trim()) throw new Error(field + " 必须是非空字符串。");
   assertByteLength(value, field, maxBytes, "ASSET_CONTENT_TOO_LARGE");
@@ -129,7 +129,7 @@ function requiredText(
 function optionalString(
   value: unknown,
   field: string,
-  maxBytes = API_LIMITS.descriptionBytes
+  maxBytes: number = API_LIMITS.descriptionBytes
 ): string | undefined {
   if (value === undefined) return undefined;
   if (typeof value !== "string") throw new Error(field + " 必须是字符串。");
@@ -140,8 +140,8 @@ function optionalString(
 function stringArray(
   value: unknown,
   field: string,
-  maxItems = API_LIMITS.dependencyCount,
-  maxItemBytes = API_LIMITS.dependencyIdBytes
+  maxItems: number = API_LIMITS.dependencyCount,
+  maxItemBytes: number = API_LIMITS.dependencyIdBytes
 ): string[] | undefined {
   if (value === undefined) return undefined;
   if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
@@ -439,7 +439,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     bodyLimit: API_LIMITS.requestBodyBytes
   });
 
-  app.setErrorHandler((error, _request, reply) => {
+  app.setErrorHandler((error: FastifyError, _request, reply) => {
     if (error.statusCode === 413 || error.code === "FST_ERR_CTP_BODY_TOO_LARGE") {
       return reply.code(413).send({
         code: "REQUEST_BODY_TOO_LARGE",
