@@ -78,7 +78,7 @@
 ## Prompt Kernel 压力测试（2026-11-24）
 
 - 专项报告：[PROMPT_KERNEL_STRESS_REPORT_ZH.md](PROMPT_KERNEL_STRESS_REPORT_ZH.md)
-- 压力测试 PR：[#4](https://github.com/tortletortle/PromptForge/pull/4)，Draft，基于 \`develop/prompt-kernel\`。
+- 压力测试 PR：[#4](https://github.com/tortletortle/PromptForge/pull/4)，Draft，基于 `develop/prompt-kernel`。
 - [GitHub Actions Run #62：Success](https://github.com/tortletortle/PromptForge/actions/runs/45354644558)。
 - Core 31/31、API 10/10、Playwright 1/1；所有类型检查和生产构建通过。
 - 20,000 节点深度依赖从调用栈溢出修复为 88.15 ms 完成。
