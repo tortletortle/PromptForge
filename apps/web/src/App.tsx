@@ -138,6 +138,7 @@ function App() {
   const [tokenBudget, setTokenBudget] = useState("8000");
   const [newProjectName, setNewProjectName] = useState("");
   const [newTaskName, setNewTaskName] = useState("");
+  const [taskContextJson, setTaskContextJson] = useState("{}");
   const [compileResponse, setCompileResponse] = useState<CompileResponse | null>(null);
   const [history, setHistory] = useState<CompileRun[]>([]);
   const [busy, setBusy] = useState(false);
@@ -210,6 +211,13 @@ function App() {
   useEffect(() => {
     if (selectedProject) setTokenBudget(String(selectedProject.tokenBudget));
   }, [selectedProjectId, projects]);
+
+  useEffect(() => {
+    const task = tasks.find((item) => item.id === selectedTaskId);
+    if (!task) return;
+    setVariablesJson(JSON.stringify(task.context, null, 2));
+    if (task.selectedAssetIds.length > 0) setSelectedAssetIds(task.selectedAssetIds);
+  }, [selectedTaskId, tasks]);
 
   useEffect(() => {
     if (view === "history") {
@@ -306,14 +314,20 @@ function App() {
     setBusy(true);
     setError("");
     try {
+      const parsedContext = JSON.parse(taskContextJson) as unknown;
+      if (!parsedContext || typeof parsedContext !== "object" || Array.isArray(parsedContext) || Object.values(parsedContext).some((value) => typeof value !== "string")) {
+        throw new Error("任务上下文必须是字符串键值 JSON 对象。");
+      }
       const result = await api.createTask(selectedProjectId, {
         name: newTaskName.trim(),
-        selectedAssetIds
+        selectedAssetIds,
+        context: parsedContext as Record<string, string>
       });
       const refreshed = await api.tasks(selectedProjectId);
       setTasks(refreshed.tasks);
       setSelectedTaskId(result.task.id);
       setNewTaskName("");
+      setTaskContextJson("{}");
       setNotice("任务上下文已创建。");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "任务创建失败。");
@@ -520,6 +534,7 @@ function App() {
                       </div>
                       <div className="editor-form">
                         <div className="form-grid">
+                          {!isNewAsset && selectedAssetId && <label className="field field-wide"><span>模块 ID <small>供依赖与冲突引用</small></span><input readOnly value={selectedAssetId} /></label>}
                           <label className="field field-wide"><span>模块名称 <b>*</b></span><input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="例如：代码审查标准" /></label>
                           <label className="field"><span>分类</span><input value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} placeholder="Engineering" /></label>
                           <label className="field"><span>优先级</span><input type="number" value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value })} /></label>
@@ -565,6 +580,7 @@ function App() {
                       <>
                         <label className="field"><span>项目</span><select value={selectedProjectId} onChange={(event) => setSelectedProjectId(event.target.value)}><option value="">不关联项目</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
                         <div className="inline-create"><input value={newTaskName} onChange={(event) => setNewTaskName(event.target.value)} placeholder="新任务名称..." /><button className="button button-secondary button-small" onClick={createTask} disabled={!selectedProjectId || !newTaskName.trim() || busy}><Plus size={14} /> 添加任务</button></div>
+                        <label className="field task-context-field"><span>新任务上下文 <small>JSON 字符串键值对象</small></span><textarea className="json-editor task-context-editor" value={taskContextJson} onChange={(event) => setTaskContextJson(event.target.value)} spellCheck={false} placeholder={'{\n  "audience": "engineers"\n}'} /></label>
                         <label className="field"><span>任务上下文</span><select value={selectedTaskId} onChange={(event) => setSelectedTaskId(event.target.value)}><option value="">不使用特定任务</option>{tasks.map((task) => <option key={task.id} value={task.id}>{task.name}</option>)}</select></label>
                         {selectedProject && <div className="project-budget-note"><FolderKanban size={14} /> 项目默认预算 {selectedProject.tokenBudget.toLocaleString()} tokens</div>}
                       </>
@@ -632,7 +648,7 @@ function App() {
                       )}
                       <div className="code-preview">
                         <div className="code-toolbar"><span><span className="code-dot" /> {compileResponse.artifact?.fileName ?? "compile-preview.md"}</span><span>PREVIEW</span></div>
-                        <pre>{compileResponse.artifact?.content ?? compileResponse.result.text || "编译失败，没有可导出的内容。"}</pre>
+                        <pre>{(compileResponse.artifact?.content ?? compileResponse.result.text) || "编译失败，没有可导出的内容。"}</pre>
                       </div>
                       <div className="output-actions">
                         <button className="button button-secondary" onClick={copyOutput} disabled={!compileResponse.result.text}><Copy size={15} /> 复制内容</button>

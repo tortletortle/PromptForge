@@ -20,6 +20,7 @@ import {
   createTask,
   deleteAsset,
   getAsset,
+  getCompileRun,
   getProject,
   getTask,
   listAssets,
@@ -99,18 +100,23 @@ function parseAssetCreate(value: unknown): PromptAssetInput {
   if (!isRecord(value)) throw new Error("请求体格式无效。");
   const description = optionalString(value.description, "description");
   const category = optionalString(value.category, "category");
+  const tags = stringArray(value.tags, "tags");
+  const dependencies = stringArray(value.dependencies, "dependencies");
+  const conflictsWith = stringArray(value.conflictsWith, "conflictsWith");
+  const variables = parseVariables(value.variables);
+  if (value.priority !== undefined && (typeof value.priority !== "number" || !Number.isFinite(value.priority))) {
+    throw new Error("priority 必须是有限数字。");
+  }
   return {
     name: requiredString(value.name, "name"),
     content: requiredString(value.content, "content"),
     ...(description !== undefined ? { description } : {}),
     ...(category !== undefined ? { category } : {}),
-    ...(stringArray(value.tags, "tags") !== undefined ? { tags: stringArray(value.tags, "tags") } : {}),
-    ...(stringArray(value.dependencies, "dependencies") !== undefined ? { dependencies: stringArray(value.dependencies, "dependencies") } : {}),
-    ...(stringArray(value.conflictsWith, "conflictsWith") !== undefined ? { conflictsWith: stringArray(value.conflictsWith, "conflictsWith") } : {}),
-    ...(parseVariables(value.variables) !== undefined ? { variables: parseVariables(value.variables) } : {}),
-    ...(value.priority !== undefined
-      ? { priority: typeof value.priority === "number" && Number.isFinite(value.priority) ? value.priority : (() => { throw new Error("priority 必须是有限数字。"); })() }
-      : {})
+    ...(tags !== undefined ? { tags } : {}),
+    ...(dependencies !== undefined ? { dependencies } : {}),
+    ...(conflictsWith !== undefined ? { conflictsWith } : {}),
+    ...(variables !== undefined ? { variables } : {}),
+    ...(typeof value.priority === "number" ? { priority: value.priority } : {})
   };
 }
 
@@ -119,12 +125,16 @@ function parseAssetUpdate(value: unknown): Partial<PromptAssetInput> {
   const result: Partial<PromptAssetInput> = {};
   if (value.name !== undefined) result.name = requiredString(value.name, "name");
   if (value.content !== undefined) result.content = requiredString(value.content, "content");
-  if (value.description !== undefined) result.description = optionalString(value.description, "description");
+  if (value.description !== undefined) {
+    const description = optionalString(value.description, "description");
+    if (description === undefined) throw new Error("description 不能为空值。");
+    result.description = description;
+  }
   if (value.category !== undefined) result.category = requiredString(value.category, "category");
-  if (value.tags !== undefined) result.tags = stringArray(value.tags, "tags");
-  if (value.dependencies !== undefined) result.dependencies = stringArray(value.dependencies, "dependencies");
-  if (value.conflictsWith !== undefined) result.conflictsWith = stringArray(value.conflictsWith, "conflictsWith");
-  if (value.variables !== undefined) result.variables = parseVariables(value.variables);
+  if (value.tags !== undefined) result.tags = stringArray(value.tags, "tags")!;
+  if (value.dependencies !== undefined) result.dependencies = stringArray(value.dependencies, "dependencies")!;
+  if (value.conflictsWith !== undefined) result.conflictsWith = stringArray(value.conflictsWith, "conflictsWith")!;
+  if (value.variables !== undefined) result.variables = parseVariables(value.variables)!;
   if (value.priority !== undefined) {
     if (typeof value.priority !== "number" || !Number.isFinite(value.priority)) throw new Error("priority 必须是有限数字。");
     result.priority = value.priority;
@@ -322,7 +332,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
 
   app.get("/api/compile-runs/:id", async (request, reply) => {
     const params = request.params as { id: string };
-    const run = listCompileRuns(db).find((item) => item.id === params.id);
+    const run = getCompileRun(db, params.id);
     if (!run) return reply.code(404).send({ error: "编译记录不存在。" });
     return { run };
   });
