@@ -317,6 +317,79 @@ describe("PromptForge API", () => {
     expect(versions.map((version) => version.snapshot.role)).toEqual(["user", "developer"]);
   });
 
+  it("keeps compile snapshots and rendered messages immutable after asset edits and deletion", async () => {
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/api/assets",
+      payload: {
+        name: "Immutable compile source",
+        role: "developer",
+        content: "Original instructions for {{ audience }}.",
+        variables: [{ name: "audience", required: true }]
+      }
+    });
+    const assetId = (createResponse.json() as { asset: { id: string } }).asset.id;
+
+    const compileResponse = await app.inject({
+      method: "POST",
+      url: "/api/compile",
+      payload: {
+        assetIds: [assetId],
+        variables: { audience: "researchers" },
+        target: "api"
+      }
+    });
+    const runId = (compileResponse.json() as { run: { id: string; status: string } }).run.id;
+    expect((compileResponse.json() as { run: { status: string } }).run.status).toBe("success");
+
+    const updateResponse = await app.inject({
+      method: "PUT",
+      url: "/api/assets/" + assetId,
+      payload: {
+        role: "user",
+        content: "Replacement instructions."
+      }
+    });
+    expect(updateResponse.statusCode).toBe(200);
+    const deleteResponse = await app.inject({
+      method: "DELETE",
+      url: "/api/assets/" + assetId
+    });
+    expect(deleteResponse.statusCode).toBe(200);
+
+    const historyResponse = await app.inject({
+      method: "GET",
+      url: "/api/compile-runs/" + runId
+    });
+    expect(historyResponse.statusCode).toBe(200);
+    const run = (historyResponse.json() as {
+      run: {
+        input: { variables: Record<string, string> };
+        messages: Array<{ role: string; content: string; sourceAssetIds: string[] }>;
+        manifest: { resolvedAssets: Array<{ id: string; version: number; role: string; content: string }> };
+        outputText: string;
+      };
+    }).run;
+
+    expect(run.input.variables).toEqual({ audience: "researchers" });
+    expect(run.messages).toHaveLength(1);
+    expect(run.messages[0]).toMatchObject({
+      role: "developer",
+      sourceAssetIds: [assetId]
+    });
+    expect(run.messages[0]?.content).toContain("Original instructions for researchers.");
+    expect(run.manifest.resolvedAssets).toMatchObject([
+      {
+        id: assetId,
+        version: 1,
+        role: "developer",
+        content: "Original instructions for {{ audience }}."
+      }
+    ]);
+    expect(run.outputText).toContain("Original instructions for researchers.");
+    expect(run.outputText).not.toContain("Replacement instructions.");
+  });
+
   it("persists failed compile diagnostics in history", async () => {
     const response = await app.inject({
       method: "POST",
