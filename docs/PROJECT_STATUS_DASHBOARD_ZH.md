@@ -64,27 +64,10 @@
 4. **安全：** 本地 API 默认监听 `127.0.0.1`，无认证；禁止直接暴露到公网或不可信局域网。
 5. **人工验收：** CI 已通过，但仍需维护者审阅 PR 和在实际使用环境中确认导出文件兼容性。
 
-## 总体开发计划与当前执行阶段
+## 下一步
 
-完整路线图：[DEVELOPMENT_PLAN_ZH.md](DEVELOPMENT_PLAN_ZH.md)。
-
-### 当前分支链
-
-| PR | 目标分支 | 当前状态 | 说明 |
-|---|---|---|---|
-| [#4 压力测试](https://github.com/tortletortle/PromptForge/pull/4) | develop/prompt-kernel | Draft，未合并 | 20k 深度链修复及规模/并发测试；Run #68 Success |
-| [#3 Prompt Kernel V0.2](https://github.com/tortletortle/PromptForge/pull/3) | develop/v0.1 | Draft，未合并 | 角色化确定性内核 |
-| [#1 V0.1 产品基础](https://github.com/tortletortle/PromptForge/pull/1) | main | Draft，未合并 | 当前 main 仍为仓库初始化基线 |
-
-推荐收敛顺序：PR #4 → PR #3 → PR #1。每一步都必须先审查、复跑 CI、核对完整 SHA；本看板不代表授权自动合并。
-
-### 下一阶段任务
-
-1. P0：完成 PR #4、#3、#1 的依赖顺序审查和基线收敛。
-2. P1：将 Kernel V0.2 接入前端，完成角色编辑、结构化消息预览和 Manifest 历史查看。
-3. P2：进行 SQLite 多进程写竞争、API 资源限额、真实网络压测、Soak 和备份恢复。
-4. P3/P4：完善资产库、依赖编辑、变量工作台及版本化 JSON 导入/导出。
-5. P5：逐个平台验证 Cursor、Claude Code、ChatGPT、通用 API 和本地 AI 的实际兼容性。
-6. P6：最后评估桌面安装包和正式发布。
-
-未达到对应验收门槛的能力保持“待开发/待验证”，不提前标记完成。
+1. 人工审查 [PR #1](https://github.com/tortletortle/PromptForge/pull/1)，保持 Draft，不自动合并。
+2. 下一迭代优先研究角色化消息编译（system / developer / user），避免所有模块被压成单一 system message。
+3. 设计提示词资产 JSON 导入/导出与数据库备份恢复，保证本地数据可迁移。
+4. 对 Cursor Rules 与 Claude Code 目标文件做真实项目兼容性验证。
+5. 根据下一轮需求再确定 V0.2 范围，不将未实现项目提前标记为完成。
