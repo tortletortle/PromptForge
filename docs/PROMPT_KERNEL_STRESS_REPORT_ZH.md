@@ -5,31 +5,31 @@
 
 ## 1. 测试基线与复现
 
-- 仓库：\`tortletortle/PromptForge\`
-- 被测内核基线：\`develop/prompt-kernel\` @ \`7211fa2c85041bfd6e4f5f0afedc7cbeb4a67f09\`
-- 压力测试分支：\`develop/kernel-stress\`
-- 最终测试提交：\`0d47b9498361c7991e2b7afcc6cdb905e397f9fb\`
-- 固定数据种子：\`20261124\`
+- 仓库：`tortletortle/PromptForge`
+- 被测内核基线：`develop/prompt-kernel` @ `7211fa2c85041bfd6e4f5f0afedc7cbeb4a67f09`
+- 压力测试分支：`develop/kernel-stress`
+- 最终测试提交：`0d47b9498361c7991e2b7afcc6cdb905e397f9fb`
+- 固定数据种子：`20261124`
 - CI： [GitHub Actions Run #62](https://github.com/tortletortle/PromptForge/actions/runs/45354644558)
 - Draft PR：[#4](https://github.com/tortletortle/PromptForge/pull/4)
-- 运行环境：GitHub Actions \`ubuntu-24.04\`，Node.js 22。
-- 复现命令：\`npm run check\`（包含 Core/API 测试），\`npm run e2e\`。
+- 运行环境：GitHub Actions `ubuntu-24.04`，Node.js 22。
+- 复现命令：`npm run check`（包含 Core/API 测试），`npm run e2e`。
 
 ## 2. 首轮故障与修复
 
-初始压力测试提交 \`32a17d350960b3a53af1968d4bc48290337ef8cc\` 在 20,000 节点深层依赖链上失败：
+初始压力测试提交 `32a17d350960b3a53af1968d4bc48290337ef8cc` 在 20,000 节点深层依赖链上失败：
 
-\`\`\`text
+```text
 RangeError: Maximum call stack size exceeded
-\`\`\`
+```
 
 故障根因：依赖解析使用递归 DFS；深度达到 20,000 时触发 JavaScript 调用栈上限。
 
 同一轮还暴露出两个平方级热点：
-- 重复选择检测通过对每个 ID 调用 \`indexOf\`，最坏为 O(n²)。
+- 重复选择检测通过对每个 ID 调用 `indexOf`，最坏为 O(n²)。
 - 冲突检测对所有已解析资产做两两比较，最坏为 O(n²)。
 
-修复提交：\`acfd577ebeb7e4f0e929200925166906f0333f4b\`
+修复提交：`acfd577ebeb7e4f0e929200925166906f0333f4b`
 
 修复内容：
 1. 递归 DFS 改为显式帧栈的迭代 DFS。
@@ -76,7 +76,7 @@ RangeError: Maximum call stack size exceeded
 - 50,000 个根选择条目可以稳定去重。
 - 8,000 个独立变量可合并和渲染。
 - 约 2.08 MB 中文/Unicode 内容可以完成模板替换。
-- 变量值中的 \`{{ ... }}\` 被当作普通文本，不进行二次递归插值。
+- 变量值中的 `{{ ... }}` 被当作普通文本，不进行二次递归插值。
 - 固定种子打乱资产和根选择顺序后，消息、显示文本和 Manifest 保持完全一致。
 - 畸形依赖元数据会返回结构化错误，不应抛出未处理异常。
 - 100 个并发 API 注入请求均返回成功，生成 100 个唯一编译记录；每条记录保留 30 个资产的 Manifest 快照。
@@ -100,11 +100,11 @@ Run #62：Success。
 
 ### 内存数据限制
 
-平铺规模测试记录了执行前后的 \`heapUsed\` 差值。该值会受到垃圾回收时机影响，不能当作峰值内存或 RSS 峰值。本轮没有采集连续内存曲线。
+平铺规模测试记录了执行前后的 `heapUsed` 差值。该值会受到垃圾回收时机影响，不能当作峰值内存或 RSS 峰值。本轮没有采集连续内存曲线。
 
 ### 并发测试边界
 
-100 并发测试使用同一 Node.js 进程中的 Fastify \`app.inject\` 和同一个 SQLite 连接。它验证请求扇入、记录 ID 唯一性和历史持久化，不等于多进程、多主机或真实网络负载测试。
+100 并发测试使用同一 Node.js 进程中的 Fastify `app.inject` 和同一个 SQLite 连接。它验证请求扇入、记录 ID 唯一性和历史持久化，不等于多进程、多主机或真实网络负载测试。
 
 ### 尚未覆盖
 
@@ -122,4 +122,4 @@ Run #62：Success。
 
 结论：**本轮定义的压力场景全部通过；内核尚未完成多进程/真实网络/长期 soak/峰值内存验收。**
 
-PR #4 保持 Draft，尚未合并到 \`develop/prompt-kernel\` 或 \`main\`。
+PR #4 保持 Draft，尚未合并到 `develop/prompt-kernel` 或 `main`。
