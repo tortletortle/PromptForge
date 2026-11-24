@@ -28,7 +28,7 @@
 | Token budget | Heuristic estimate and over-budget rejection | Core unit test |
 | Adapters | Cursor, Claude Code, ChatGPT, generic API JSON, local text | Adapter unit tests |
 | Compile history | Persist success/failure, input snapshot, output and diagnostics | API test |
-| UI | Asset library, composer, preview, history | Browser smoke test pending |
+| UI | Asset library, composer, preview, history | Playwright smoke test 1/1 passed |
 
 ## Explicitly excluded
 
@@ -40,16 +40,18 @@
 - Automatic writes into a user's Cursor/Claude Code project.
 - Sending prompts to model providers or storing provider API keys.
 - Exact tokenization for every model family.
+- Frontend role editor and structured message history viewer (next increment).
+- Whole-library JSON import/export and database backup/restore (next increment).
 
 ## V0.1 completion gate
 
-V0.1 is not considered complete until:
+- [x] Clean checkout installs and CI verification succeeds on Node.js 22+ using `npm install`.
+- [x] Type checks pass for core, API, and web.
+- [x] Core and API automated tests pass.
+- [x] Production builds succeed.
+- [ ] API data persistence is verified across a full process restart (database close/reopen is covered; process restart still needs a dedicated test).
+- [x] Browser smoke test covers asset CRUD, project/task creation, compile, export, and history.
+- [ ] Complete independent security/data-loss review and production-readiness checks.
+- [x] Dashboard evidence links to the exact candidate commit and CI Run #94.
 
-- [ ] clean install succeeds on Node.js 22+
-- [ ] type checks pass for core, API, and web
-- [ ] core and API automated tests pass
-- [ ] production builds succeed
-- [ ] API persists data across process restarts
-- [ ] browser smoke test covers asset CRUD, project/task creation, compile, export, and history
-- [ ] no critical security or data-loss defect remains
-- [ ] dashboard evidence links to the exact commit and CI run
+**Current candidate:** `develop/v0.1` @ `ac1529cb6427a9342f43ed771ff374a9f4fcdc23`; [CI Run #94](https://github.com/tortletortle/PromptForge/actions/runs/45384611003).
