@@ -36,7 +36,7 @@ function diagnostic(
 ): CompileDiagnostic {
   return {
     code,
-    stage,
+    ...(stage !== undefined ? { stage } : {}),
     severity: "error",
     message,
     ...(assetIds ? { assetIds } : {})
