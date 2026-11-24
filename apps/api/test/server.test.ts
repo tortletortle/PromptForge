@@ -4,8 +4,22 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
-import { buildServer } from "../src/server.js";
+import { buildServer, resolveListenHost } from "../src/server.js";
 import { createAsset, listAssets, listAssetVersions, listCompileRuns, openDatabase, type SqliteDatabase } from "../src/database.js";
+
+describe("local API binding", () => {
+  it("allows loopback hosts and rejects network interfaces without authentication", () => {
+    expect(resolveListenHost(undefined)).toBe("127.0.0.1");
+    expect(resolveListenHost("")).toBe("127.0.0.1");
+    expect(resolveListenHost("127.0.0.1")).toBe("127.0.0.1");
+    expect(resolveListenHost("localhost")).toBe("localhost");
+    expect(resolveListenHost("::1")).toBe("::1");
+
+    expect(() => resolveListenHost("0.0.0.0")).toThrow("尚未启用远程 API 认证");
+    expect(() => resolveListenHost("192.168.1.20")).toThrow("尚未启用远程 API 认证");
+    expect(() => resolveListenHost("203.0.113.10")).toThrow("尚未启用远程 API 认证");
+  });
+});
 
 describe("PromptForge API", () => {
   let database: SqliteDatabase;
