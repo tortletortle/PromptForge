@@ -1,19 +1,19 @@
 # PromptForge Prompt Kernel V0.2 研发状态
 
-> 当前内核已合入集成开发分支。自动化通过不等于前端功能完整或外部平台兼容性验收通过。
+> Prompt Kernel V0.2 已合入 main。自动化通过不等于前端功能完整或外部平台兼容性验收通过。
 
 ## 分支与合并记录
 
 - 仓库：`tortletortle/PromptForge`
-- 集成分支：`develop/v0.1`
-- 当前集成候选：`ac1529cb6427a9342f43ed771ff374a9f4fcdc23`
-- PR #4 压力测试已合入 `develop/prompt-kernel`：`2e2b349136f433c320870ce3996ac98f7586a8db`
-- PR #3 Kernel V0.2 已合入 `develop/v0.1`：`d6d33f4d0827a88d5447d4b21a216bc5b10ef8ea`
-- PR #1 产品基础仍在 Draft，尚未合入 `main`。
+- main：`abba0f13362df5a7b2b46adf31739705869dcdfe`
+- 开发分支：`develop/v0.1` @ `3262b16f3eb912414ee170e39da38b6854f5c576`
+- PR #4 压力测试合入：`2e2b349136f433c320870ce3996ac98f7586a8db`
+- PR #3 Kernel V0.2 合入：`d6d33f4d0827a88d5447d4b21a216bc5b10ef8ea`
+- PR #1 产品基础合入 main：`abba0f13362df5a7b2b46adf31739705869dcdfe`
 
-## 最新自动化验收证据
+## 最新主线自动化验收证据
 
-[GitHub Actions Run #94：Success](https://github.com/tortletortle/PromptForge/actions/runs/45384611003)，对应当前集成候选提交。
+[GitHub Actions Run #101：Success](https://github.com/tortletortle/PromptForge/actions/runs/45385688286)，对应 main 提交 `abba0f13362df5a7b2b46adf31739705869dcdfe`。
 
 | 验收项 | 结果 |
 |---|---:|

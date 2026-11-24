@@ -19,7 +19,7 @@ V0.1 includes:
 
 ## Prompt Kernel V0.2
 
-The role-aware deterministic Prompt Kernel is integrated into `develop/v0.1` and has passed the current CI and migration tests:
+The role-aware deterministic Prompt Kernel is integrated into `main` and passed the main-branch CI and migration tests:
 
 - Structured `system`, `developer`, and `user` roles.
 - Deterministic dependency and role-order validation.
@@ -28,6 +28,7 @@ The role-aware deterministic Prompt Kernel is integrated into `develop/v0.1` and
 - Compile manifests containing exact resolved asset snapshots.
 - Structured messages and manifests persisted in compile history.
 - Atomic SQLite v1/v2 → v4 migrations and rollback on corrupt legacy snapshots.
+- Iterative dependency traversal and indexed conflict detection with stress coverage.
 
 The frontend role editor and structured-message history viewer are still pending. See [Prompt Kernel design](docs/PROMPT_KERNEL_DESIGN.md) and [Kernel status](docs/PROMPT_KERNEL_STATUS_ZH.md).
 
