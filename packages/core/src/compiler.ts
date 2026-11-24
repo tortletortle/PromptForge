@@ -46,17 +46,24 @@ function diagnostic(
 function toCompileAssetSnapshot(asset: PromptAsset): CompileAssetSnapshot {
   return {
     id: asset.id,
-    version: asset.version,
-    role: asset.role,
-    name: asset.name,
-    description: asset.description,
-    content: asset.content,
-    category: asset.category,
-    tags: [...asset.tags],
-    dependencies: [...asset.dependencies],
-    conflictsWith: [...asset.conflictsWith],
-    variables: asset.variables.map((item) => ({ ...item })),
-    priority: asset.priority
+    version: Number.isSafeInteger(asset.version) ? asset.version : 0,
+    role: isPromptRole(asset.role) ? asset.role : "system",
+    name: typeof asset.name === "string" ? asset.name : "",
+    description: typeof asset.description === "string" ? asset.description : "",
+    content: typeof asset.content === "string" ? asset.content : "",
+    category: typeof asset.category === "string" ? asset.category : "General",
+    tags: Array.isArray(asset.tags) ? asset.tags.filter((tag): tag is string => typeof tag === "string") : [],
+    dependencies: Array.isArray(asset.dependencies)
+      ? asset.dependencies.filter((id): id is string => typeof id === "string")
+      : [],
+    conflictsWith: Array.isArray(asset.conflictsWith)
+      ? asset.conflictsWith.filter((id): id is string => typeof id === "string")
+      : [],
+    variables: Array.isArray(asset.variables)
+      ? asset.variables.filter((item) => Boolean(item && typeof item.name === "string" && typeof item.required === "boolean"))
+          .map((item) => ({ ...item }))
+      : [],
+    priority: Number.isFinite(asset.priority) ? asset.priority : 0
   };
 }
 
