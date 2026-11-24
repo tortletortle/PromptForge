@@ -66,4 +66,4 @@ Adapters generate downloadable artifacts only. Cursor and Claude Code outputs ar
 
 ## Project status
 
-See [the V0.1 project dashboard](docs/PROJECT_STATUS_DASHBOARD_ZH.md), [product scope](docs/PRODUCT_SCOPE_V0.1.md), and [architecture](docs/ARCHITECTURE.md).
+See the [project dashboard](docs/PROJECT_STATUS_DASHBOARD_ZH.md), [overall development plan](docs/DEVELOPMENT_PLAN_ZH.md), [product scope](docs/PRODUCT_SCOPE_V0.1.md), and [architecture](docs/ARCHITECTURE.md).
