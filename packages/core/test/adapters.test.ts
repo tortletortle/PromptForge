@@ -9,11 +9,29 @@ describe("target adapters", () => {
     expect(artifact.content).toContain("Use concise instructions.");
   });
 
-  it("renders a generic API request without inventing model credentials", () => {
-    const artifact = createAdapterArtifact("api", "System instructions", { projectName: "Demo" });
-    const parsed = JSON.parse(artifact.content) as { messages: Array<{ role: string; content: string }> };
-    expect(parsed.messages[0]).toEqual({ role: "system", content: "System instructions" });
+  it("preserves role-separated messages in generic API exports", () => {
+    const artifact = createAdapterArtifact("api", {
+      text: "Flattened preview",
+      messages: [
+        { role: "system", content: "System rules", sourceAssetIds: ["a"] },
+        { role: "developer", content: "Developer policy", sourceAssetIds: ["b"] },
+        { role: "user", content: "User task", sourceAssetIds: ["c"] }
+      ]
+    });
+    const parsed = JSON.parse(artifact.content) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    expect(parsed.messages.map((message) => message.role)).toEqual(["system", "developer", "user"]);
+    expect(parsed.messages[1]?.content).toBe("Developer policy");
     expect(artifact.content).not.toContain("api_key");
+  });
+
+  it("keeps string input backward compatible", () => {
+    const artifact = createAdapterArtifact("api", "System instructions");
+    const parsed = JSON.parse(artifact.content) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    expect(parsed.messages[0]).toEqual({ role: "system", content: "System instructions" });
   });
 
   it("renders Claude Code and local AI files", () => {
