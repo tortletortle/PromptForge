@@ -263,54 +263,81 @@ function mapCompileRun(row: CompileRunRow): CompileRun {
   };
 }
 
+function applyMigration(
+  db: SqliteDatabase,
+  targetVersion: number,
+  statements: string,
+  migrateData?: () => void
+): void {
+  const migration = db.transaction(() => {
+    const currentVersion = db.pragma("user_version", { simple: true }) as number;
+    if (currentVersion >= targetVersion) return;
+    if (currentVersion !== targetVersion - 1) {
+      throw new Error(
+        "无法执行 SQLite 迁移：当前版本 " + currentVersion + "，目标版本 " + targetVersion + "。"
+      );
+    }
+
+    db.exec(statements);
+    migrateData?.();
+    db.pragma("user_version = " + targetVersion);
+  });
+  migration.immediate();
+}
+
 export function openDatabase(filename = resolve(process.cwd(), "data", "promptforge.sqlite")): SqliteDatabase {
   if (filename !== ":memory:") {
     mkdirSync(dirname(resolve(filename)), { recursive: true });
   }
 
   const db = new Database(filename);
-  db.pragma("foreign_keys = ON");
-  db.pragma("busy_timeout = 5000");
+  try {
+    db.pragma("foreign_keys = ON");
+    db.pragma("busy_timeout = 5000");
 
-  let currentVersion = db.pragma("user_version", { simple: true }) as number;
-  if (currentVersion < 1) {
-    db.exec("BEGIN IMMEDIATE;\n" + MIGRATION_1 + "\nPRAGMA user_version = 1;\nCOMMIT;");
-    currentVersion = 1;
-  }
-  if (currentVersion < 2) {
-    db.exec("BEGIN IMMEDIATE;\n" + MIGRATION_2 + "\nPRAGMA user_version = 2;\nCOMMIT;");
-    const existingAssets = db.prepare("SELECT * FROM prompt_assets").all() as AssetRow[];
-    for (const row of existingAssets) saveAssetVersion(db, mapAsset(row));
-    currentVersion = 2;
-  }
-  if (currentVersion < 3) {
-    db.exec("BEGIN IMMEDIATE;\n" + MIGRATION_3 + "\nPRAGMA user_version = 3;\nCOMMIT;");
-    const versions = db.prepare("SELECT asset_id, version, snapshot_json FROM prompt_asset_versions").all() as Array<{
-      asset_id: string; version: number; snapshot_json: string;
-    }>;
-    const updateSnapshot = db.prepare(
-      "UPDATE prompt_asset_versions SET snapshot_json = ? WHERE asset_id = ? AND version = ?"
-    );
-    for (const version of versions) {
-      const snapshot = parseJson<Record<string, unknown>>(version.snapshot_json, {});
-      if (typeof snapshot.role !== "string") {
-        snapshot.role = "system";
-        updateSnapshot.run(JSON.stringify(snapshot), version.asset_id, version.version);
-      }
+    const initialVersion = db.pragma("user_version", { simple: true }) as number;
+    if (initialVersion > 4) {
+      throw new Error("数据库 schema 版本 " + initialVersion + " 高于当前程序支持的版本 4。");
     }
-    currentVersion = 3;
-  }
-  if (currentVersion < 4) {
-    db.exec("BEGIN IMMEDIATE;\n" + MIGRATION_4 + "\nPRAGMA user_version = 4;\nCOMMIT;");
-  }
 
-  if (filename !== ":memory:") {
-    db.pragma("journal_mode = WAL");
-  }
+    applyMigration(db, 1, MIGRATION_1);
+    applyMigration(db, 2, MIGRATION_2, () => {
+      const existingAssets = db.prepare("SELECT * FROM prompt_assets").all() as AssetRow[];
+      for (const row of existingAssets) saveAssetVersion(db, mapAsset(row));
+    });
+    applyMigration(db, 3, MIGRATION_3, () => {
+      const versions = db.prepare(
+        "SELECT asset_id, version, snapshot_json FROM prompt_asset_versions"
+      ).all() as Array<{ asset_id: string; version: number; snapshot_json: string }>;
+      const updateSnapshot = db.prepare(
+        "UPDATE prompt_asset_versions SET snapshot_json = ? WHERE asset_id = ? AND version = ?"
+      );
 
-  return db;
+      for (const version of versions) {
+        const snapshot = parseJson<Record<string, unknown> | null>(version.snapshot_json, null);
+        if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
+          throw new Error(
+            "无法迁移损坏的资产历史快照：" + version.asset_id + "@" + version.version + "。"
+          );
+        }
+        if (!["system", "developer", "user"].includes(snapshot.role as string)) {
+          snapshot.role = "system";
+          updateSnapshot.run(JSON.stringify(snapshot), version.asset_id, version.version);
+        }
+      }
+    });
+    applyMigration(db, 4, MIGRATION_4);
+
+    if (filename !== ":memory:") {
+      db.pragma("journal_mode = WAL");
+    }
+
+    return db;
+  } catch (error) {
+    db.close();
+    throw error;
+  }
 }
-
 function cleanStringArray(values: string[] | undefined): string[] {
   return [...new Set((values ?? []).map((value) => value.trim()).filter(Boolean))];
 }
