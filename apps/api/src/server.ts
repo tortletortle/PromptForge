@@ -51,6 +51,11 @@ function requiredString(value: unknown, field: string): string {
   return value.trim();
 }
 
+function requiredText(value: unknown, field: string): string {
+  if (typeof value !== "string" || !value.trim()) throw new Error(field + " 必须是非空字符串。");
+  return value;
+}
+
 function optionalString(value: unknown, field: string): string | undefined {
   if (value === undefined) return undefined;
   if (typeof value !== "string") throw new Error(field + " 必须是字符串。");
@@ -109,7 +114,7 @@ function parseAssetCreate(value: unknown): PromptAssetInput {
   }
   return {
     name: requiredString(value.name, "name"),
-    content: requiredString(value.content, "content"),
+    content: requiredText(value.content, "content"),
     ...(description !== undefined ? { description } : {}),
     ...(category !== undefined ? { category } : {}),
     ...(tags !== undefined ? { tags } : {}),
@@ -124,7 +129,7 @@ function parseAssetUpdate(value: unknown): Partial<PromptAssetInput> {
   if (!isRecord(value)) throw new Error("请求体格式无效。");
   const result: Partial<PromptAssetInput> = {};
   if (value.name !== undefined) result.name = requiredString(value.name, "name");
-  if (value.content !== undefined) result.content = requiredString(value.content, "content");
+  if (value.content !== undefined) result.content = requiredText(value.content, "content");
   if (value.description !== undefined) {
     const description = optionalString(value.description, "description");
     if (description === undefined) throw new Error("description 不能为空值。");
@@ -145,7 +150,7 @@ function parseAssetUpdate(value: unknown): Partial<PromptAssetInput> {
 function parseProjectCreate(value: unknown): PromptProjectInput {
   if (!isRecord(value)) throw new Error("请求体格式无效。");
   const description = optionalString(value.description, "description");
-  if (value.tokenBudget !== undefined && (typeof value.tokenBudget !== "number" || value.tokenBudget <= 0)) {
+  if (value.tokenBudget !== undefined && (typeof value.tokenBudget !== "number" || !Number.isFinite(value.tokenBudget) || value.tokenBudget <= 0)) {
     throw new Error("tokenBudget 必须是正数。");
   }
   return {
