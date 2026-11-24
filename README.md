@@ -2,39 +2,82 @@
 
 > Local-first prompt asset management and deterministic prompt compilation.
 
-PromptForge is a TypeScript-first workspace for composing reusable prompt assets into reproducible, target-aware prompt packages.
+PromptForge turns reusable prompts into versioned assets, composes them with explicit project/task context, validates dependencies and conflicts, and exports deterministic prompt packages for different AI workflows.
 
-## V0.1 goals
+## Current product baseline
 
-- Manage prompt assets, categories, tags, and reusable modules.
-- Organize work by project and task context.
-- Resolve explicit module dependencies and detect dependency cycles/conflicts.
-- Compile a deterministic prompt package with variables and token-budget checks.
-- Preview and copy compiled output; retain compile history.
-- Export target-specific artifacts through adapters for Cursor, Claude Code, ChatGPT, generic API, and local AI workflows.
+V0.1 includes:
+
+- Prompt asset CRUD, categories, tags, search, priority, immutable version snapshots, and restore-as-new-version.
+- Project and task context with reusable string variables.
+- Explicit module dependencies, cycle detection, and conflict detection.
+- Deterministic dependency expansion and prompt assembly.
+- Template variables using `{{ variable_name }}`, defaults, and required-variable validation.
+- Heuristic token estimation and configurable token-budget enforcement.
+- Compile preview, clipboard copy, target artifact export, and persisted compile history.
+- Initial adapters for Cursor Rules, Claude Code, ChatGPT, generic API JSON, and local AI text workflows.
+
+## Prompt Kernel V0.2
+
+The role-aware deterministic Prompt Kernel is integrated into `develop/v0.1` and has passed the current CI and migration tests:
+
+- Structured `system`, `developer`, and `user` roles.
+- Deterministic dependency and role-order validation.
+- Strict variable schema validation and fail-closed default conflict handling.
+- Injectable `TokenCounter` interface; default `heuristic-v2` is approximate.
+- Compile manifests containing exact resolved asset snapshots.
+- Structured messages and manifests persisted in compile history.
+- Atomic SQLite v1/v2 → v4 migrations and rollback on corrupt legacy snapshots.
+
+The frontend role editor and structured-message history viewer are still pending. See [Prompt Kernel design](docs/PROMPT_KERNEL_DESIGN.md) and [Kernel status](docs/PROMPT_KERNEL_STATUS_ZH.md).
 
 ## Architecture
 
-- **Web UI:** React + TypeScript + Vite.
-- **API:** Node.js + TypeScript + Fastify.
-- **Persistence:** SQLite with Drizzle ORM and SQL migrations.
-- **Core:** framework-independent domain, dependency resolver, conflict validator, and deterministic compiler.
-- **Adapters:** pure renderers/exporters; no silent modification of external project files in V0.1.
+- **Frontend:** React 19 + TypeScript + Vite.
+- **API:** Node.js 22+ + TypeScript + Fastify.
+- **Persistence:** SQLite via better-sqlite3, with schema versioning through SQLite `user_version`.
+- **Core:** provider-independent deterministic prompt kernel and pure target adapters.
+- **Workspace:** npm workspaces monorepo.
 
-## Development status
+The API binds to loopback by default and rejects non-loopback `HOST` overrides until remote authentication exists. There is no authentication; do not expose the service to a public network. The compiler does not send prompts to external models.
 
-The repository is being bootstrapped from an empty repository. Features are marked complete only after implementation and automated verification.
+## Requirements
 
-## Planned V0.1 workflow
+- Node.js 22 or newer
+- npm 10 or newer
 
-1. Create prompt assets and reusable modules.
-2. Create a project and task profile.
-3. Select modules and resolve dependencies.
-4. Fill template variables.
-5. Validate conflicts and token budget.
-6. Compile, preview, copy, and retain a versioned compile record.
-7. Export using a selected target adapter.
+## Run locally
 
-## Local development
+From the repository root:
 
-The monorepo setup and exact commands will be documented after the initial scaffold lands.
+```bash
+npm install
+npm run dev
+```
+
+Open the Vite URL printed by the web workspace (normally `http://127.0.0.1:5173`). The API listens on `http://127.0.0.1:4317`.
+
+The default database is `data/promptforge.sqlite` relative to the API process working directory. Override it with `PROMPTFORGE_DB_PATH`.
+
+## Verify
+
+```bash
+npm run typecheck
+npm test
+npm run build
+npm run e2e
+```
+
+`npm run check` runs type checks, tests, and production builds.
+
+## Token estimate limitation
+
+The built-in `heuristic-v2` estimator is a rough planning aid, not a model tokenizer. Actual token counts vary by model, tokenizer, language, and provider. Provider-specific tokenizers can be supplied through the `TokenCounter` interface when an integration is added. Treat the heuristic as a budget warning, not a billing or context-window guarantee.
+
+## Adapter boundary
+
+Adapters generate downloadable artifacts only. Cursor and Claude Code outputs are suggested files; PromptForge does not overwrite project files or install IDE integrations. The generic API adapter preserves role-separated messages but does not select a model, add credentials, or send a request.
+
+## Project status
+
+See the [project dashboard](docs/PROJECT_STATUS_DASHBOARD_ZH.md), [overall development plan](docs/DEVELOPMENT_PLAN_ZH.md), [product scope](docs/PRODUCT_SCOPE_V0.1.md), and [architecture](docs/ARCHITECTURE.md).
