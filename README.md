@@ -52,13 +52,17 @@ The API binds to loopback by default and rejects non-loopback `HOST` overrides u
 From the repository root:
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
 Open the Vite URL printed by the web workspace (normally `http://127.0.0.1:5173`). The API listens on `http://127.0.0.1:4317`.
 
 The default database is `data/promptforge.sqlite` relative to the API process working directory. Override it with `PROMPTFORGE_DB_PATH`.
+
+## Dependency lockfile
+
+The root `package-lock.json` locks the root package and all npm workspaces (`apps/api`, `apps/web`, and `packages/core`). Use `npm ci` for clean, reproducible installs; CI also uses `npm ci` and fails if the lockfile is out of sync with workspace manifests. When changing dependencies, update the relevant workspace `package.json` and regenerate the lockfile with Node.js 22 / npm 10 or newer. Commit the manifest and lockfile changes together; do not edit `package-lock.json` by hand.
 
 ## Verify
 
