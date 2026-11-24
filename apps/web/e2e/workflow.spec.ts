@@ -16,6 +16,16 @@ test("asset → project/task → compile → export → history", async ({ page 
   await page.getByRole("button", { name: "保存模块" }).click();
   await expect(page.locator(".success-feedback")).toContainText("模块已保存");
 
+  const originalPrompt = "Write concise technical guidance for {{ audience }}.";
+  await page.locator(".content-editor").fill("Temporary revision for version restore test.");
+  await page.getByRole("button", { name: "保存模块" }).click();
+  const versionSelector = page.locator(".version-restore-select");
+  await expect(versionSelector).toBeVisible();
+  page.once("dialog", (dialog) => dialog.accept());
+  await versionSelector.selectOption("1");
+  await expect(page.locator(".success-feedback")).toContainText("已恢复 v1");
+  await expect(page.locator(".content-editor")).toHaveValue(originalPrompt);
+
   await page.getByRole("button", { name: "组合工作台" }).click();
   await page.getByPlaceholder("例如：Prompt Engineering").fill(projectName);
   await page.getByRole("button", { name: "创建", exact: true }).click();
@@ -40,4 +50,5 @@ test("asset → project/task → compile → export → history", async ({ page 
 
   await page.getByRole("button", { name: "编译历史" }).click();
   await expect(page.locator(".history-table tbody tr")).toHaveCount(1);
+  await page.screenshot({ path: "test-results/promptforge-workflow.png", fullPage: true });
 });
