@@ -1,89 +1,112 @@
-# PromptForge V0.1 项目进度看板
+# PromptForge 项目进度看板
 
-> 看板状态必须对应当前分支、提交和可复跑证据。代码写入不等于功能验收。
+> 看板状态必须对应真实分支、完整 commit SHA 和可复跑证据。计划、代码存在、局部测试通过不能代替完整验收。
 
-## 当前基线
+## 当前研发基线
 
 - 仓库：`tortletortle/PromptForge`
-- 稳定分支：`main`
-- V0.1 开发分支：`develop/v0.1`
-- V0.2 内核分支：`develop/prompt-kernel`
-- 技术栈：TypeScript + React + SQLite
-- V0.1 PR：[#1](https://github.com/tortletortle/PromptForge/pull/1)，Draft，未合并。
-- V0.2 内核 PR：[#3](https://github.com/tortletortle/PromptForge/pull/3)，Draft，未合并。
+- 稳定分支：`main` @ `b4d7bef19ebad4def1ce78978cdd0afae5dea542`
+- 集成开发分支：`develop/v0.1` @ `ac1529cb6427a9342f43ed771ff374a9f4fcdc23`
+- Kernel 专项分支：`develop/prompt-kernel`
+- 技术栈：Node.js 22、TypeScript、React、Fastify、SQLite、Vite。
 
-## V0.2 Prompt Kernel 自动化验收
+### PR 收敛状态
 
-已验证提交：`5994b3e263cae8306947960127c791e5c395d665`
+| PR | 目标分支 | 状态 | 合并提交 / 当前说明 |
+|---|---|---|---|
+| [#4 Kernel 压力测试](https://github.com/tortletortle/PromptForge/pull/4) | develop/prompt-kernel | 已合并 | `2e2b349136f433c320870ce3996ac98f7586a8db` |
+| [#3 Prompt Kernel V0.2](https://github.com/tortletortle/PromptForge/pull/3) | develop/v0.1 | 已合并 | `d6d33f4d0827a88d5447d4b21a216bc5b10ef8ea` |
+| [#1 V0.1 产品基础](https://github.com/tortletortle/PromptForge/pull/1) | main | Draft，未合并 | 当前集成候选为 `ac1529cb6427a9342f43ed771ff374a9f4fcdc23` |
 
-- GitHub Actions [Run #50：Success](https://github.com/tortletortle/PromptForge/actions/runs/45349438615)。
-- Core / API / Web TypeScript 检查全部通过。
-- Core 测试：21/21；API 测试：9/9。
-- Core / API / Web 生产构建全部通过。
-- Playwright 浏览器 smoke test：1/1 通过。
-- [Playwright 报告 Artifact](https://github.com/tortletortle/PromptForge/actions/runs/45349438615/artifacts/14899338057)。
+**注意：** Kernel 和压力测试成果已经进入 `develop/v0.1` 集成分支，但还没有进入 `main`。PR #1 合并前仍需完成最终审查。
 
-详细设计与专项看板：
-- [Prompt Kernel 设计规范](PROMPT_KERNEL_DESIGN.md)
-- [Prompt Kernel 研发状态](PROMPT_KERNEL_STATUS_ZH.md)
+## 最新自动化验收
 
-## V0.1 功能看板
+- 被测提交：`ac1529cb6427a9342f43ed771ff374a9f4fcdc23`
+- [GitHub Actions Run #94：Success](https://github.com/tortletortle/PromptForge/actions/runs/45384611003)
+- Core 测试：31/31。
+- API 测试：14/14。
+- Core / API / Web TypeScript 检查：通过。
+- Core / API / Web 生产构建：通过。
+- Playwright 浏览器 smoke test：1/1。
+- 浏览器报告由 CI 上传。
 
-| 模块 | 当前状态 | 说明/边界 |
+以上是该精确提交的自动化证据，不代表已经完成真实平台兼容性或生产环境验收。
+
+## V0.1 产品基础
+
+| 模块 | 当前状态 | 说明 |
 |---|---|---|
-| 提示词资产 CRUD | 已实现 | 分类、标签、搜索、优先级 |
-| 资产版本 | 已实现 | 每次保存生成快照；恢复旧快照会创建新版本 |
-| 项目管理 | 已实现 | 项目默认 Token 预算 |
-| 任务上下文 | 已实现 | 字符串变量、任务选择的资产 ID |
-| 依赖解析 | 已实现 | 自动展开、依赖优先、确定性排序 |
-| 冲突检测 | 已实现 | 任一侧声明冲突即可阻止编译 |
-| 模板引擎 | 已实现 | 必填变量、默认值、缺失变量诊断 |
-| Token 预算 | 已实现 | heuristic-v2 近似估算，不是模型 tokenizer |
-| 编译记录 | 已实现 | 成功/失败历史 |
-| 平台适配器 | 已实现 | 当前生成可下载文件，不是 IDE 插件或自动写入 |
-| 前端 | 已实现 | 资产、项目/任务、编译、下载和历史主流程通过 Playwright |
+| 提示词资产 CRUD | 自动化验收通过 | 创建、读取、编辑、删除、搜索 |
+| 资产版本 | 自动化验收通过 | 不可变快照、恢复旧版本为新版本 |
+| 项目管理 | 自动化验收通过 | 项目和默认 Token 预算 |
+| 任务上下文 | 自动化验收通过 | 字符串变量、任务选择资产 |
+| 依赖解析 | 自动化验收通过 | 显式选择、传递依赖、稳定顺序 |
+| 冲突检测 | 自动化验收通过 | 双向声明均可阻止编译 |
+| 模板引擎 | 自动化验收通过 | 必填值、默认值、严格模板语法 |
+| Token 预算 | 自动化验收通过 | heuristic-v2 近似估算 |
+| 编译历史 | 自动化验收通过 | 输入、输出、消息、Manifest、诊断 |
+| 平台适配器 | 自动化验收通过 | 生成可下载文件，不是 IDE 插件 |
+| 前端主流程 | Playwright 通过 | 资产 → 项目/任务 → 编译 → 导出 → 历史 |
 
-## V0.2 内核能力
+## V0.2 Prompt Kernel
 
 | 子系统 | 状态 | 说明 |
 |---|---|---|
-| 角色化消息 | 自动化验收通过 | system / developer / user |
-| 确定性依赖图 | 自动化验收通过 | 传递依赖、环检测、稳定顺序 |
-| 角色顺序约束 | 自动化验收通过 | 不可满足的跨角色依赖失败关闭 |
-| 严格变量 schema | 自动化验收通过 | 未声明变量、空必填值、默认值冲突均有诊断 |
+| system / developer / user 角色 | 自动化验收通过 | 角色化消息 |
+| 依赖图 | 自动化验收通过 | 迭代 DFS、环检测、缺失依赖诊断 |
+| 角色顺序 | 自动化验收通过 | 不可满足的依赖关系失败关闭 |
+| 冲突规则 | 自动化验收通过 | 冲突边索引、去重 |
+| 变量合并 | 自动化验收通过 | 默认值冲突拒绝、必填约束 |
+| 模板渲染 | 自动化验收通过 | 不执行代码、不递归展开注入值 |
 | TokenCounter | 自动化验收通过 | 可注入，默认 heuristic-v2 |
-| Compile Manifest | 自动化验收通过 | 完整 resolved asset snapshots |
-| 历史可追溯 | 自动化验收通过 | 保存 messages 和 manifest |
-| SQLite v2→v4 | 自动化验收通过 | 旧资产和快照默认 system |
-| 前端角色编辑 | 未开始 | 后续单独开发 |
-| 外部平台实机兼容性 | 未开始 | 需要 Cursor / Claude Code 真实项目验收 |
+| Compile Manifest | 自动化验收通过 | 完整解析资产快照 |
+| 历史快照 | 自动化验收通过 | 源资产修改或删除后历史不变 |
+| SQLite v1/v2 → v4 | 自动化验收通过 | 原子迁移、损坏快照回滚 |
+| 前端角色编辑 | 未开始 | 下一阶段任务 |
+| 结构化消息预览 | 未开始 | 下一阶段任务 |
 
-## 当前限制与风险
+## 性能与压力测试证据
 
-1. **Token 估算：** heuristic-v2 不能保证与具体模型 tokenizer 一致。
-2. **目标平台集成：** Cursor、Claude Code、ChatGPT、本地模型适配器当前生成可下载文件或可复制文本，不会直接写入外部项目，也不会调用模型服务。
-3. **API 适配器：** 当前只生成结构化 messages JSON，不发送模型请求。
-4. **安全：** 本地 API 默认监听 `127.0.0.1`，无认证；禁止直接暴露到公网或不可信局域网。
-5. **人工验收：** 自动化通过后仍需维护者审查 PR，并在实际使用环境中确认导出文件兼容性。
+专项报告：[Prompt Kernel 压力测试报告](PROMPT_KERNEL_STRESS_REPORT_ZH.md)。
 
-## 下一步
+已通过的压力场景：
+- 10,000 个平铺资产。
+- 20,000 节点依赖链和循环依赖。
+- 10,001 节点宽依赖图。
+- 50,000 条根选择记录。
+- 10,000 个资产、5,000 对冲突。
+- 8,000 个变量。
+- 约 2.075 MB Unicode 模板。
+- 100 个 API 请求及 100 条唯一编译历史。
 
-1. 人工审查 [PR #3](https://github.com/tortletortle/PromptForge/pull/3)，保持 Draft，不自动合并。
-2. 增加前端角色编辑和结构化消息预览。
-3. 为目标模型接入真实 tokenizer，并与 heuristic-v2 对照。
-4. 对 Cursor Rules 与 Claude Code 目标文件做真实项目兼容性验证。
-5. 设计提示词资产 JSON 导入/导出与数据库备份恢复。
+这些结果来自单次 CI 测量，不构成生产 SLA。
 
+## 当前安全与可靠性边界
 
-## Prompt Kernel 压力测试（2026-11-24）
+1. API 默认监听 loopback；非 loopback 的 `HOST` 覆盖会被拒绝。
+2. API 尚无认证，不支持公网或不可信局域网暴露。
+3. 编译器不发送提示词到外部模型。
+4. 适配器只生成文件，不会自动覆盖外部项目。
+5. Token 估算不是具体模型的精确 tokenizer。
+6. 尚未完成多进程 SQLite 写竞争、真实网络压力、长期 Soak、峰值 RSS/GC/CPU profiling。
+7. npm lockfile 尚未纳入仓库，跨时间安装的传递依赖版本还不能完全锁定。
+8. API 数据库进程重启验收、备份恢复和完整数据导入/导出仍需补齐。
 
-- 专项报告：[PROMPT_KERNEL_STRESS_REPORT_ZH.md](PROMPT_KERNEL_STRESS_REPORT_ZH.md)
-- 压力测试 PR：[#4](https://github.com/tortletortle/PromptForge/pull/4)，Draft，基于 `develop/prompt-kernel`。
-- [GitHub Actions Run #62：Success](https://github.com/tortletortle/PromptForge/actions/runs/45354644558)。
-- Core 31/31、API 10/10、Playwright 1/1；所有类型检查和生产构建通过。
-- 20,000 节点深度依赖从调用栈溢出修复为 88.15 ms 完成。
-- 10,000 资产平铺编译 53.66 ms；10,001 节点宽依赖 63.61 ms。
-- 50,000 个根选择条目去重 16.01 ms；10,000 资产中 5,000 对冲突检测 39.87 ms。
-- 100 个并发 API 编译请求在 102.54 ms 内完成，100 条唯一历史记录均持久化。
-- 以上为单次 GitHub Actions 测量，不构成生产 SLA。
-- 仍待进行：多进程 SQLite 竞争、真实网络压力、长时间 soak、峰值 RSS/GC/CPU 分析。
+## 下一阶段执行顺序
+
+| 任务 | 优先级 | 验收目标 |
+|---|---|---|
+| PF-004 前端角色编辑 | P0 | 能创建和编辑三种角色资产 |
+| PF-005 结构化预览与 Manifest 历史查看 | P1 | 能定位消息来源并复现历史输入 |
+| PF-006 SQLite 多进程竞争与恢复 | P0 | 无静默丢失、迁移可恢复 |
+| PF-007 API 输入与资源限制 | P0 | 超限有结构化错误，不导致进程失控 |
+| PF-008 真实网络压测与 Soak | P0 | 有可复跑脚本、原始数据和性能报告 |
+| PF-009 备份恢复 | P1 | 数据库往返恢复通过 |
+| PF-010 JSON Bundle 导入/导出 | P1 | 往返一致、失败回滚 |
+| PF-011 Cursor / Claude Code 兼容性 | P1 | 真实目标环境验证 |
+| PF-012 ChatGPT / API / Local 适配器验收 | P1 | 契约与实际使用验证 |
+| PF-013 真实 TokenCounter | P1 | tokenizer 误差对照 |
+| PF-014 桌面安装包选型 | P2 | 干净环境安装与升级验收 |
+
+**当前结论：** `develop/v0.1` 已形成 V0.1 产品基础 + V0.2 角色化内核的集成候选，并通过 Run #94。尚未合并 main，也尚未达到正式发布条件。
