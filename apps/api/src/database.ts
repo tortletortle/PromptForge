@@ -8,6 +8,8 @@ import type {
   CompileRun,
   PromptAsset,
   PromptAssetInput,
+  PromptAssetSnapshot,
+  PromptAssetVersion,
   PromptProject,
   PromptProjectInput,
   PromptTask,
@@ -68,6 +70,24 @@ const MIGRATION_1 = [
   ");",
   "CREATE INDEX compile_runs_project_created_idx ON compile_runs(project_id, created_at DESC);"
 ].join("\n");
+
+const MIGRATION_2 = [
+  "CREATE TABLE IF NOT EXISTS prompt_asset_versions (",
+  "  asset_id TEXT NOT NULL REFERENCES prompt_assets(id) ON DELETE CASCADE,",
+  "  version INTEGER NOT NULL,",
+  "  snapshot_json TEXT NOT NULL,",
+  "  created_at TEXT NOT NULL,",
+  "  PRIMARY KEY (asset_id, version)",
+  ");",
+  "CREATE INDEX IF NOT EXISTS prompt_asset_versions_asset_idx ON prompt_asset_versions(asset_id, version DESC);"
+].join("\n");
+
+interface AssetVersionRow {
+  asset_id: string;
+  version: number;
+  snapshot_json: string;
+  created_at: string;
+}
 
 interface AssetRow {
   id: string;
@@ -145,6 +165,26 @@ function mapAsset(row: AssetRow): PromptAsset {
   };
 }
 
+function toAssetSnapshot(asset: PromptAsset): PromptAssetSnapshot {
+  return {
+    name: asset.name,
+    description: asset.description,
+    content: asset.content,
+    category: asset.category,
+    tags: asset.tags,
+    dependencies: asset.dependencies,
+    conflictsWith: asset.conflictsWith,
+    variables: asset.variables,
+    priority: asset.priority
+  };
+}
+
+function saveAssetVersion(db: SqliteDatabase, asset: PromptAsset): void {
+  db.prepare(
+    "INSERT OR IGNORE INTO prompt_asset_versions (asset_id, version, snapshot_json, created_at) VALUES (?, ?, ?, ?)"
+  ).run(asset.id, asset.version, JSON.stringify(toAssetSnapshot(asset)), asset.updatedAt);
+}
+
 function mapProject(row: ProjectRow): PromptProject {
   return {
     id: row.id,
@@ -194,9 +234,15 @@ export function openDatabase(filename = resolve(process.cwd(), "data", "promptfo
   db.pragma("foreign_keys = ON");
   db.pragma("busy_timeout = 5000");
 
-  const currentVersion = db.pragma("user_version", { simple: true }) as number;
+  let currentVersion = db.pragma("user_version", { simple: true }) as number;
   if (currentVersion < 1) {
     db.exec("BEGIN IMMEDIATE;\n" + MIGRATION_1 + "\nPRAGMA user_version = 1;\nCOMMIT;");
+    currentVersion = 1;
+  }
+  if (currentVersion < 2) {
+    db.exec("BEGIN IMMEDIATE;\n" + MIGRATION_2 + "\nPRAGMA user_version = 2;\nCOMMIT;");
+    const existingAssets = db.prepare("SELECT * FROM prompt_assets").all() as AssetRow[];
+    for (const row of existingAssets) saveAssetVersion(db, mapAsset(row));
   }
 
   if (filename !== ":memory:") {
@@ -244,7 +290,9 @@ export function createAsset(db: SqliteDatabase, input: PromptAssetInput): Prompt
     now,
     now
   );
-  return getAsset(db, id)!;
+  const asset = getAsset(db, id)!;
+  saveAssetVersion(db, asset);
+  return asset;
 }
 
 export function updateAsset(
@@ -284,7 +332,54 @@ export function updateAsset(
     id
   );
 
-  return getAsset(db, id);
+  const updated = getAsset(db, id);
+  if (updated) saveAssetVersion(db, updated);
+  return updated;
+}
+
+export function listAssetVersions(db: SqliteDatabase, assetId: string): PromptAssetVersion[] {
+  const rows = db.prepare(
+    "SELECT * FROM prompt_asset_versions WHERE asset_id = ? ORDER BY version DESC"
+  ).all(assetId) as AssetVersionRow[];
+  return rows.map((row) => ({
+    assetId: row.asset_id,
+    version: row.version,
+    snapshot: parseJson<PromptAssetSnapshot>(row.snapshot_json, {
+      name: "",
+      description: "",
+      content: "",
+      category: "General",
+      tags: [],
+      dependencies: [],
+      conflictsWith: [],
+      variables: [],
+      priority: 0
+    }),
+    createdAt: row.created_at
+  }));
+}
+
+export function restoreAssetVersion(
+  db: SqliteDatabase,
+  assetId: string,
+  version: number
+): PromptAsset | null {
+  const row = db.prepare(
+    "SELECT snapshot_json FROM prompt_asset_versions WHERE asset_id = ? AND version = ?"
+  ).get(assetId, version) as { snapshot_json: string } | undefined;
+  if (!row) return null;
+  const snapshot = parseJson<PromptAssetSnapshot>(row.snapshot_json, {
+    name: "",
+    description: "",
+    content: "",
+    category: "General",
+    tags: [],
+    dependencies: [],
+    conflictsWith: [],
+    variables: [],
+    priority: 0
+  });
+  return updateAsset(db, assetId, snapshot);
 }
 
 export function deleteAsset(db: SqliteDatabase, id: string): boolean {

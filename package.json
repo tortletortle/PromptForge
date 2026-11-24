@@ -7,6 +7,7 @@
   "engines": { "node": ">=22.0.0" },
   "scripts": {
     "dev": "concurrently -k \"npm:dev:api\" \"npm:dev:web\"",
+    "e2e": "playwright test",
     "dev:api": "npm run dev -w @promptforge/api",
     "dev:web": "npm run dev -w @promptforge/web",
     "build": "npm run build -w @promptforge/core && npm run build -w @promptforge/api && npm run build -w @promptforge/web",
@@ -17,6 +18,7 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.13.4",
+    "@playwright/test": "^1.51.0",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.4",

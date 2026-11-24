@@ -5,6 +5,7 @@ import type {
   CompileRun,
   PromptAsset,
   PromptAssetInput,
+  PromptAssetVersion,
   PromptProject,
   PromptProjectInput,
   PromptTask,
@@ -45,6 +46,10 @@ export const api = {
   }),
   deleteAsset: (id: string) => request<{ deleted: boolean }>("/api/assets/" + encodeURIComponent(id), {
     method: "DELETE"
+  }),
+  assetVersions: (id: string) => request<{ versions: PromptAssetVersion[] }>("/api/assets/" + encodeURIComponent(id) + "/versions"),
+  restoreAssetVersion: (id: string, version: number) => request<{ asset: PromptAsset }>("/api/assets/" + encodeURIComponent(id) + "/versions/" + version + "/restore", {
+    method: "POST"
   }),
   projects: () => request<{ projects: PromptProject[] }>("/api/projects"),
   createProject: (input: PromptProjectInput) => request<{ project: PromptProject }>("/api/projects", {

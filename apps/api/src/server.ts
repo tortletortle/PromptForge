@@ -24,10 +24,12 @@ import {
   getProject,
   getTask,
   listAssets,
+  listAssetVersions,
   listCompileRuns,
   listProjects,
   listTasks,
   openDatabase,
+  restoreAssetVersion,
   updateAsset,
   type SqliteDatabase
 } from "./database.js";
@@ -233,6 +235,23 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     const deleted = deleteAsset(db, params.id);
     if (!deleted) return reply.code(404).send({ error: "提示词模块不存在。" });
     return { deleted: true };
+  });
+
+  app.get("/api/assets/:id/versions", async (request, reply) => {
+    const params = request.params as { id: string };
+    if (!getAsset(db, params.id)) return reply.code(404).send({ error: "提示词模块不存在。" });
+    return { versions: listAssetVersions(db, params.id) };
+  });
+
+  app.post("/api/assets/:id/versions/:version/restore", async (request, reply) => {
+    const params = request.params as { id: string; version: string };
+    const version = Number(params.version);
+    if (!Number.isInteger(version) || version < 1) {
+      return reply.code(400).send({ error: "版本号必须是正整数。" });
+    }
+    const asset = restoreAssetVersion(db, params.id, version);
+    if (!asset) return reply.code(404).send({ error: "提示词模块或历史版本不存在。" });
+    return { asset };
   });
 
   app.get("/api/projects", async () => ({ projects: listProjects(db) }));

@@ -35,6 +35,7 @@ import type {
   CompileRun,
   PromptAsset,
   PromptAssetInput,
+  PromptAssetVersion,
   PromptProject,
   PromptTask,
   VariableDefinition
@@ -123,6 +124,7 @@ function formatDate(value: string): string {
 function App() {
   const [view, setView] = useState<View>("library");
   const [assets, setAssets] = useState<PromptAsset[]>([]);
+  const [assetVersions, setAssetVersions] = useState<PromptAssetVersion[]>([]);
   const [projects, setProjects] = useState<PromptProject[]>([]);
   const [tasks, setTasks] = useState<PromptTask[]>([]);
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
@@ -146,6 +148,7 @@ function App() {
   const [error, setError] = useState("");
 
   const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? null;
+  const selectedAsset = assets.find((asset) => asset.id === selectedAssetId) ?? null;
   const filteredAssets = useMemo(() => {
     return assets.filter((asset) => {
       const matchesCategory = categoryFilter === "All" || asset.category === categoryFilter;
@@ -189,6 +192,11 @@ function App() {
     if (!isNewAsset && selectedAssetId) {
       const asset = assets.find((item) => item.id === selectedAssetId);
       if (asset) setForm(formFromAsset(asset));
+      api.assetVersions(selectedAssetId).then((result) => setAssetVersions(result.versions)).catch((reason: unknown) => {
+        setError(reason instanceof Error ? reason.message : "版本历史加载失败。");
+      });
+    } else {
+      setAssetVersions([]);
     }
   }, [selectedAssetId, assets, isNewAsset]);
 
@@ -263,6 +271,23 @@ function App() {
       setNotice("模块已保存。版本 " + result.asset.version);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "保存失败。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function restoreVersion(version: number): Promise<void> {
+    if (!selectedAssetId || !window.confirm("恢复到 v" + version + " 会创建一个新的当前版本，不会删除后续历史。继续吗？")) return;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api.restoreAssetVersion(selectedAssetId, version);
+      const refreshed = await api.assets();
+      setAssets(refreshed.assets);
+      setSelectedAssetId(result.asset.id);
+      setNotice("已恢复 v" + version + " 的内容，并创建新版本 v" + result.asset.version + "。");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "版本恢复失败。");
     } finally {
       setBusy(false);
     }
@@ -525,6 +550,7 @@ function App() {
                           <h2>{isNewAsset ? "创建提示词模块" : "编辑模块"}</h2>
                         </div>
                         <div className="editor-heading-actions">
+                          {!isNewAsset && assetVersions.length > 1 && <select className="version-restore-select" defaultValue="" aria-label="恢复历史版本" onChange={(event) => { const version = Number(event.target.value); event.currentTarget.value = ""; if (version > 0) void restoreVersion(version); }}><option value="">版本历史 · {assetVersions.length}</option>{assetVersions.filter((item) => item.version !== selectedAsset?.version).map((item) => <option key={item.version} value={item.version}>恢复 v{item.version} · {formatDate(item.createdAt)}</option>)}</select>}
                           {!isNewAsset && <button className="icon-button danger-quiet" onClick={removeAsset} title="删除模块"><Trash2 size={16} /></button>}
                           <button className="button button-primary button-small" onClick={saveAsset} disabled={busy}>
                             {busy ? <LoaderCircle className="spin" size={15} /> : <SaveIcon />}
@@ -546,7 +572,7 @@ function App() {
                           <label className="field field-wide"><span>变量定义 <small>JSON 数组</small></span><textarea className="json-editor" value={form.variablesJson} onChange={(event) => setForm({ ...form, variablesJson: event.target.value })} spellCheck={false} /></label>
                         </div>
                       </div>
-                      <div className="editor-footer"><span><ShieldCheck size={14} /> 保存后生成新版本</span><span>支持 {"{{ variable }}"} 模板</span></div>
+                      <div className="editor-footer"><span><ShieldCheck size={14} /> {selectedAsset ? "当前 v" + selectedAsset.version + " · " + assetVersions.length + " 个历史快照" : "保存后生成新版本"}</span><span>支持 {"{{ variable }}"} 模板</span></div>
                     </>
                   ) : (
                     <div className="editor-empty">

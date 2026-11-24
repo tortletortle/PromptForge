@@ -17,13 +17,13 @@
 | Capability | V0.1 behavior | Acceptance evidence |
 |---|---|---|
 | Prompt assets | Create, read, update, delete, search, categorize, tag | API tests + UI flow |
-| Asset version | Increment current version on edit | SQLite row and API response |
+| Asset version | Immutable snapshot per save; inspect history; restore an older snapshot as a new version | API tests + version-history UI |
 | Project context | Create projects with a default token budget | API test |
 | Task context | Store string variables and selected asset IDs | API test |
 | Dependencies | Expand dependencies before dependents | Core unit test |
 | Cycle detection | Reject dependency cycles | Core unit test |
 | Conflict detection | Reject conflicts declared by either side | Core unit test |
-| Variables | Substitute \`{{name}}\`, defaults, and required values | Core unit test |
+| Variables | Substitute `{{name}}`, defaults, and required values | Core unit test |
 | Deterministic assembly | Stable ordering and output | Core unit test |
 | Token budget | Heuristic estimate and over-budget rejection | Core unit test |
 | Adapters | Cursor, Claude Code, ChatGPT, generic API JSON, local text | Adapter unit tests |

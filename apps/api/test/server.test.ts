@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { buildServer } from "../src/server.js";
-import { openDatabase, type SqliteDatabase } from "../src/database.js";
+import { createAsset, listAssets, openDatabase, type SqliteDatabase } from "../src/database.js";
 
 describe("PromptForge API", () => {
   let database: SqliteDatabase;
@@ -30,6 +33,29 @@ describe("PromptForge API", () => {
     expect(createResponse.statusCode).toBe(201);
     const created = createResponse.json() as { asset: { id: string; version: number } };
     expect(created.asset.version).toBe(1);
+
+    const updateResponse = await app.inject({
+      method: "PUT",
+      url: "/api/assets/" + created.asset.id,
+      payload: { content: "Updated instructions for {{ audience }}." }
+    });
+    expect((updateResponse.json() as { asset: { version: number } }).asset.version).toBe(2);
+
+    const versionsResponse = await app.inject({
+      method: "GET",
+      url: "/api/assets/" + created.asset.id + "/versions"
+    });
+    const versions = versionsResponse.json() as { versions: Array<{ version: number; snapshot: { content: string } }> };
+    expect(versions.versions.map((version) => version.version)).toEqual([2, 1]);
+    expect(versions.versions[1]?.snapshot.content).toBe("Help {{ audience }} solve technical problems.");
+
+    const restoreResponse = await app.inject({
+      method: "POST",
+      url: "/api/assets/" + created.asset.id + "/versions/1/restore"
+    });
+    const restored = restoreResponse.json() as { asset: { version: number; content: string } };
+    expect(restored.asset.version).toBe(3);
+    expect(restored.asset.content).toBe("Help {{ audience }} solve technical problems.");
 
     const compileResponse = await app.inject({
       method: "POST",
@@ -66,6 +92,20 @@ describe("PromptForge API", () => {
     expect(body.runs).toHaveLength(1);
     expect(body.runs[0]?.status).toBe("failed");
     expect(body.runs[0]?.errors.length).toBeGreaterThan(0);
+  });
+
+  it("persists assets across SQLite database reopen", () => {
+    const directory = mkdtempSync(join(tmpdir(), "promptforge-persistence-"));
+    const path = join(directory, "promptforge.sqlite");
+    const first = openDatabase(path);
+    createAsset(first, { name: "Persistent asset", content: "Persist this prompt." });
+    first.close();
+
+    const second = openDatabase(path);
+    expect(listAssets(second)).toHaveLength(1);
+    expect(listAssets(second)[0]?.name).toBe("Persistent asset");
+    second.close();
+    rmSync(directory, { recursive: true, force: true });
   });
 
   it("creates project and task context", async () => {

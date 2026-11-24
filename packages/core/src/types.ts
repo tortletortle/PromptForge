@@ -25,6 +25,25 @@ export interface PromptAsset {
   updatedAt: string;
 }
 
+export interface PromptAssetSnapshot {
+  name: string;
+  description: string;
+  content: string;
+  category: string;
+  tags: string[];
+  dependencies: string[];
+  conflictsWith: string[];
+  variables: VariableDefinition[];
+  priority: number;
+}
+
+export interface PromptAssetVersion {
+  assetId: string;
+  version: number;
+  snapshot: PromptAssetSnapshot;
+  createdAt: string;
+}
+
 export interface PromptAssetInput {
   name: string;
   description?: string;
