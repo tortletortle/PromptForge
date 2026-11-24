@@ -7,7 +7,7 @@
 - 仓库：`tortletortle/PromptForge`
 - 稳定分支：`main`
 - 开发分支：`develop/v0.1`
-- 当前开发提交：`c45216913a2ad99b02a570da56a4f5d72e6d213d`
+- 功能验收提交：`c45216913a2ad99b02a570da56a4f5d72e6d213d`
 - 技术栈：TypeScript + React + SQLite
 - 阶段：V0.1 首轮功能与自动化全链路验收通过；Draft PR 等待人工审查。
 
@@ -24,7 +24,7 @@
 - [GitHub Actions Run #17](https://github.com/tortletortle/PromptForge/actions/runs/45306862641)
 - [Playwright 报告与运行附件](https://github.com/tortletortle/PromptForge/actions/runs/45306862641/artifacts/14881222585)
 
-首轮基础提交也通过了 CI Run #11；本看板以当前提交 Run #17 的证据为准。
+首轮基础提交也通过了 CI Run #11；Run #17 覆盖功能验收提交。随后仅更新了项目看板和 PR 描述，没有修改产品源代码。
 
 ## 总体进度
 
