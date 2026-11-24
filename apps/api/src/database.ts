@@ -228,27 +228,37 @@ function mapTask(row: TaskRow): PromptTask {
 }
 
 function mapCompileRun(row: CompileRunRow): CompileRun {
+  const input = parseJson<CompileRun["input"]>(row.input_json, { selectedAssetIds: [], variables: {} });
+  const storedManifest = parseJson<Partial<CompileRun["manifest"]>>(row.manifest_json, {});
+  const manifest: CompileRun["manifest"] = {
+    schemaVersion: 1,
+    selectedAssetIds: Array.isArray(storedManifest.selectedAssetIds)
+      ? storedManifest.selectedAssetIds
+      : input.selectedAssetIds,
+    orderedAssetIds: Array.isArray(storedManifest.orderedAssetIds) ? storedManifest.orderedAssetIds : [],
+    resolvedAssets: Array.isArray(storedManifest.resolvedAssets) ? storedManifest.resolvedAssets : [],
+    variableNames: Array.isArray(storedManifest.variableNames) ? storedManifest.variableNames : [],
+    tokenEstimate: Number.isSafeInteger(storedManifest.tokenEstimate)
+      ? storedManifest.tokenEstimate as number
+      : row.token_estimate,
+    estimateMethod: typeof storedManifest.estimateMethod === "string"
+      ? storedManifest.estimateMethod
+      : "legacy-unknown"
+  };
+
   return {
     id: row.id,
     projectId: row.project_id,
     taskId: row.task_id,
     target: row.target as AdapterId,
-    input: parseJson<CompileRun["input"]>(row.input_json, { selectedAssetIds: [], variables: {} }),
+    input,
     outputText: row.output_text,
     tokenEstimate: row.token_estimate,
     status: row.status,
     warnings: parseJson<CompileDiagnostic[]>(row.warnings_json, []),
     errors: parseJson<CompileDiagnostic[]>(row.errors_json, []),
     messages: parseJson<CompileRun["messages"]>(row.messages_json, []),
-    manifest: parseJson<CompileRun["manifest"]>(row.manifest_json, {
-      schemaVersion: 1,
-      selectedAssetIds: parseJson<CompileRun["input"]>(row.input_json, { selectedAssetIds: [], variables: {} }).selectedAssetIds,
-      orderedAssetIds: [],
-      resolvedAssets: [],
-      variableNames: [],
-      tokenEstimate: row.token_estimate,
-      estimateMethod: "legacy-unknown"
-    }),
+    manifest,
     createdAt: row.created_at
   };
 }
