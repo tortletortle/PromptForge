@@ -52,6 +52,6 @@
 - [ ] API data persistence is verified across a full process restart (database close/reopen is covered; process restart still needs a dedicated test).
 - [x] Browser smoke test covers asset CRUD, project/task creation, compile, export, and history.
 - [ ] Complete independent security/data-loss review and production-readiness checks.
-- [x] Dashboard evidence links to the exact candidate commit and CI Run #94.
+- [x] Main dashboard evidence links to the exact commit and CI Run #101.
 
-**Current candidate:** `develop/v0.1` @ `ac1529cb6427a9342f43ed771ff374a9f4fcdc23`; [CI Run #94](https://github.com/tortletortle/PromptForge/actions/runs/45384611003).
+**Current main baseline:** `abba0f13362df5a7b2b46adf31739705869dcdfe`; [CI Run #101](https://github.com/tortletortle/PromptForge/actions/runs/45385688286).
