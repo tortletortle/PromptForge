@@ -4,20 +4,52 @@ export interface TemplateRenderResult {
   text: string;
   errors: CompileDiagnostic[];
   warnings: CompileDiagnostic[];
+  usedVariables: string[];
 }
 
-export function mergeVariableDefinitions(assets: PromptAsset[]): {
+export interface VariableMergeResult {
   definitions: Map<string, VariableDefinition>;
+  errors: CompileDiagnostic[];
   warnings: CompileDiagnostic[];
-} {
+}
+
+const VARIABLE_NAME_PATTERN = /^[\p{L}_][\p{L}\p{N}_.-]*$/u;
+const PLACEHOLDER_PATTERN = /\{\{\s*([\p{L}_][\p{L}\p{N}_.-]*)\s*\}\}/gu;
+
+export function mergeVariableDefinitions(assets: PromptAsset[]): VariableMergeResult {
   const definitions = new Map<string, VariableDefinition>();
+  const errors: CompileDiagnostic[] = [];
   const warnings: CompileDiagnostic[] = [];
 
   for (const asset of assets) {
+    const localNames = new Set<string>();
     for (const definition of asset.variables) {
+      if (!VARIABLE_NAME_PATTERN.test(definition.name)) {
+        errors.push({
+          code: "INVALID_VARIABLE_NAME",
+          stage: "variables",
+          severity: "error",
+          message: "模块 " + asset.name + " 包含无效变量名：" + definition.name,
+          assetIds: [asset.id]
+        });
+        continue;
+      }
+
+      if (localNames.has(definition.name)) {
+        errors.push({
+          code: "DUPLICATE_VARIABLE_DEFINITION",
+          stage: "variables",
+          severity: "error",
+          message: "模块 " + asset.name + " 重复定义变量：" + definition.name,
+          assetIds: [asset.id]
+        });
+        continue;
+      }
+      localNames.add(definition.name);
+
       const existing = definitions.get(definition.name);
       if (!existing) {
-        definitions.set(definition.name, definition);
+        definitions.set(definition.name, { ...definition });
         continue;
       }
 
@@ -26,10 +58,25 @@ export function mergeVariableDefinitions(assets: PromptAsset[]): {
         definition.defaultValue !== undefined &&
         existing.defaultValue !== definition.defaultValue
       ) {
-        warnings.push({
+        errors.push({
           code: "VARIABLE_DEFAULT_CONFLICT",
+          stage: "variables",
+          severity: "error",
+          message: "变量 " + definition.name + " 存在互相冲突的默认值；必须显式统一定义。",
+          assetIds: [asset.id]
+        });
+      }
+
+      if (
+        existing.description &&
+        definition.description &&
+        existing.description !== definition.description
+      ) {
+        warnings.push({
+          code: "VARIABLE_DESCRIPTION_CONFLICT",
+          stage: "variables",
           severity: "warning",
-          message: "变量 " + definition.name + " 在多个模块中定义了不同默认值；采用依赖顺序中首次出现的默认值。",
+          message: "变量 " + definition.name + " 的说明不一致；采用确定性顺序中的首次说明。",
           assetIds: [asset.id]
         });
       }
@@ -37,7 +84,11 @@ export function mergeVariableDefinitions(assets: PromptAsset[]): {
       definitions.set(definition.name, {
         name: definition.name,
         required: existing.required || definition.required,
-        ...(existing.description ? { description: existing.description } : {}),
+        ...(existing.description
+          ? { description: existing.description }
+          : definition.description
+            ? { description: definition.description }
+            : {}),
         ...(existing.defaultValue !== undefined
           ? { defaultValue: existing.defaultValue }
           : definition.defaultValue !== undefined
@@ -47,7 +98,7 @@ export function mergeVariableDefinitions(assets: PromptAsset[]): {
     }
   }
 
-  return { definitions, warnings };
+  return { definitions, errors, warnings };
 }
 
 export function renderTemplate(
@@ -58,26 +109,65 @@ export function renderTemplate(
 ): TemplateRenderResult {
   const errors: CompileDiagnostic[] = [];
   const used = new Set<string>();
+  const residue = content.replace(PLACEHOLDER_PATTERN, "");
+  if (residue.includes("{{") || residue.includes("}}")) {
+    errors.push({
+      code: "MALFORMED_TEMPLATE",
+      stage: "render",
+      severity: "error",
+      message: "模块 " + assetId + " 包含格式不正确的模板占位符。",
+      assetIds: [assetId]
+    });
+  }
 
-  const text = content.replace(/\{\{\s*([\p{L}\p{N}_.-]+)\s*\}\}/gu, (match, rawName: string) => {
-    const name = rawName.trim();
+  const text = content.replace(PLACEHOLDER_PATTERN, (match, name: string) => {
     used.add(name);
-
-    if (Object.prototype.hasOwnProperty.call(values, name)) {
-      return values[name] ?? "";
+    const definition = definitions.get(name);
+    if (!definition) {
+      errors.push({
+        code: "UNDECLARED_VARIABLE",
+        stage: "render",
+        severity: "error",
+        message: "模块 " + assetId + " 使用了未声明的变量：" + name,
+        assetIds: [assetId]
+      });
+      return match;
     }
 
-    const definition = definitions.get(name);
-    if (definition?.defaultValue !== undefined) {
+    if (Object.prototype.hasOwnProperty.call(values, name)) {
+      const value = values[name] ?? "";
+      if (definition.required && value.trim().length === 0) {
+        errors.push({
+          code: "MISSING_VARIABLE",
+          stage: "render",
+          severity: "error",
+          message: "必需变量不能为空：" + name,
+          assetIds: [assetId]
+        });
+        return match;
+      }
+      return value;
+    }
+
+    if (definition.defaultValue !== undefined) {
+      if (definition.required && definition.defaultValue.trim().length === 0) {
+        errors.push({
+          code: "MISSING_VARIABLE",
+          stage: "render",
+          severity: "error",
+          message: "必需变量没有有效值或非空默认值：" + name,
+          assetIds: [assetId]
+        });
+        return match;
+      }
       return definition.defaultValue;
     }
 
-    if (definition && !definition.required) {
-      return "";
-    }
+    if (!definition.required) return "";
 
     errors.push({
       code: "MISSING_VARIABLE",
+      stage: "render",
       severity: "error",
       message: "模块 " + assetId + " 缺少必需变量：" + name,
       assetIds: [assetId]
@@ -85,13 +175,5 @@ export function renderTemplate(
     return match;
   });
 
-  for (const definition of definitions.values()) {
-    if (definition.required && !definition.defaultValue && !Object.prototype.hasOwnProperty.call(values, definition.name)) {
-      if (used.has(definition.name)) {
-        continue;
-      }
-    }
-  }
-
-  return { text, errors, warnings: [] };
+  return { text, errors, warnings: [], usedVariables: [...used].sort((a, b) => a.localeCompare(b)) };
 }
