@@ -503,7 +503,7 @@ AdapterId + successful CompileResult + target metadata
 | PF-003 | 审查并收敛 PR #1 V0.1 产品基线 | P0 | PF-002 | 已完成 | [PR #1](https://github.com/tortletortle/PromptForge/pull/1) + Run #100 + main Run #101 |
 | [PF-004](https://github.com/tortletortle/PromptForge/issues/7) | 前端角色编辑与角色化编译预览 | P0 | PF-003 | Open | Playwright 端到端证据 |
 | PF-005 | Compile Manifest 历史查看和复现 | P1 | [PF-004](https://github.com/tortletortle/PromptForge/issues/7) | 前端角色编辑与结构化编译预览 | P0 | PF-003 | 已完成（PR #11） | Run #106 + Playwright 角色 E2E |
-| [PF-006](https://github.com/tortletortle/PromptForge/issues/8) | SQLite 多进程竞争和崩溃恢复 | P0 | PF-003 | Open | 多进程测试日志 |
+| [PF-006](https://github.com/tortletortle/PromptForge/issues/8) | SQLite 多进程竞争和崩溃恢复 | P0 | PF-003 | 进行中：第一阶段已合入 PR #15；崩溃恢复待验证 | Run #114 + 多进程回归测试 |
 | [PF-007](https://github.com/tortletortle/PromptForge/issues/9) | API 输入限额和资源预算 | P0 | PF-003 | 已完成（PR #13） | Run #111 + API 边界测试 |
 | PF-008 | 真实网络压测与 30/60 分钟 Soak | P0 | PF-006、PF-007 | 阻塞中 | 原始数据、脚本、性能报告 |
 | PF-009 | 数据库备份和恢复 | P1 | PF-006 | 待启动 | 往返恢复与故障测试 |
@@ -597,4 +597,4 @@ AdapterId + successful CompileResult + target metadata
 5. PF-009/PF-010：完成数据库备份恢复与 JSON Bundle 导入导出。
 6. PF-011～PF-013：完成目标平台兼容性与真实 tokenizer。
 
-**当前阶段结论：** 初始产品代码及 PF-004、PF-007、PF-015 已进入 main；最新主线提交 `46f0b6f3a7094de36bedd628dc88e0cc845bd1ac` 通过 Run #112。当前是可持续开发基线，不是正式发布版本。
+**当前阶段结论：** 初始产品代码及 PF-004、PF-007、PF-015 已进入 main；PF-006 第一阶段原子写入和多进程并发测试已合入，提交 `e828c07c318f9f208853727510d51eb433c62066`。当前是可持续开发基线，不是正式发布版本。
