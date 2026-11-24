@@ -10,6 +10,7 @@ import type {
   PromptAssetInput,
   PromptAssetSnapshot,
   PromptAssetVersion,
+  PromptRole,
   PromptProject,
   PromptProjectInput,
   PromptTask,
@@ -71,6 +72,15 @@ const MIGRATION_1 = [
   "CREATE INDEX compile_runs_project_created_idx ON compile_runs(project_id, created_at DESC);"
 ].join("\n");
 
+const MIGRATION_3 = [
+  "ALTER TABLE prompt_assets ADD COLUMN role TEXT NOT NULL DEFAULT 'system';"
+].join("\n");
+
+const MIGRATION_4 = [
+  "ALTER TABLE compile_runs ADD COLUMN messages_json TEXT NOT NULL DEFAULT '[]';",
+  "ALTER TABLE compile_runs ADD COLUMN manifest_json TEXT NOT NULL DEFAULT '{}';"
+].join("\n");
+
 const MIGRATION_2 = [
   "CREATE TABLE IF NOT EXISTS prompt_asset_versions (",
   "  asset_id TEXT NOT NULL REFERENCES prompt_assets(id) ON DELETE CASCADE,",
@@ -100,6 +110,7 @@ interface AssetRow {
   conflicts_json: string;
   variables_json: string;
   priority: number;
+  role: string;
   version: number;
   created_at: string;
   updated_at: string;
@@ -136,6 +147,8 @@ interface CompileRunRow {
   status: "success" | "failed";
   warnings_json: string;
   errors_json: string;
+  messages_json: string;
+  manifest_json: string;
   created_at: string;
 }
 
@@ -148,8 +161,12 @@ function parseJson<T>(value: string, fallback: T): T {
 }
 
 function mapAsset(row: AssetRow): PromptAsset {
+  const role = (["system", "developer", "user"] as const).includes(row.role as PromptRole)
+    ? row.role as PromptRole
+    : "system";
   return {
     id: row.id,
+    role,
     name: row.name,
     description: row.description,
     content: row.content,
@@ -175,6 +192,7 @@ function toAssetSnapshot(asset: PromptAsset): PromptAssetSnapshot {
     dependencies: asset.dependencies,
     conflictsWith: asset.conflictsWith,
     variables: asset.variables,
+    role: asset.role,
     priority: asset.priority
   };
 }
@@ -221,6 +239,16 @@ function mapCompileRun(row: CompileRunRow): CompileRun {
     status: row.status,
     warnings: parseJson<CompileDiagnostic[]>(row.warnings_json, []),
     errors: parseJson<CompileDiagnostic[]>(row.errors_json, []),
+    messages: parseJson<CompileRun["messages"]>(row.messages_json, []),
+    manifest: parseJson<CompileRun["manifest"]>(row.manifest_json, {
+      schemaVersion: 1,
+      selectedAssetIds: parseJson<CompileRun["input"]>(row.input_json, { selectedAssetIds: [], variables: {} }).selectedAssetIds,
+      orderedAssetIds: [],
+      resolvedAssets: [],
+      variableNames: [],
+      tokenEstimate: row.token_estimate,
+      estimateMethod: "legacy-unknown"
+    }),
     createdAt: row.created_at
   };
 }
@@ -243,6 +271,27 @@ export function openDatabase(filename = resolve(process.cwd(), "data", "promptfo
     db.exec("BEGIN IMMEDIATE;\n" + MIGRATION_2 + "\nPRAGMA user_version = 2;\nCOMMIT;");
     const existingAssets = db.prepare("SELECT * FROM prompt_assets").all() as AssetRow[];
     for (const row of existingAssets) saveAssetVersion(db, mapAsset(row));
+    currentVersion = 2;
+  }
+  if (currentVersion < 3) {
+    db.exec("BEGIN IMMEDIATE;\n" + MIGRATION_3 + "\nPRAGMA user_version = 3;\nCOMMIT;");
+    const versions = db.prepare("SELECT asset_id, version, snapshot_json FROM prompt_asset_versions").all() as Array<{
+      asset_id: string; version: number; snapshot_json: string;
+    }>;
+    const updateSnapshot = db.prepare(
+      "UPDATE prompt_asset_versions SET snapshot_json = ? WHERE asset_id = ? AND version = ?"
+    );
+    for (const version of versions) {
+      const snapshot = parseJson<Record<string, unknown>>(version.snapshot_json, {});
+      if (typeof snapshot.role !== "string") {
+        snapshot.role = "system";
+        updateSnapshot.run(JSON.stringify(snapshot), version.asset_id, version.version);
+      }
+    }
+    currentVersion = 3;
+  }
+  if (currentVersion < 4) {
+    db.exec("BEGIN IMMEDIATE;\n" + MIGRATION_4 + "\nPRAGMA user_version = 4;\nCOMMIT;");
   }
 
   if (filename !== ":memory:") {
@@ -275,7 +324,7 @@ export function createAsset(db: SqliteDatabase, input: PromptAssetInput): Prompt
   const id = randomUUID();
   const now = new Date().toISOString();
   db.prepare(
-    "INSERT INTO prompt_assets (id, name, description, content, category, tags_json, dependencies_json, conflicts_json, variables_json, priority, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)"
+    "INSERT INTO prompt_assets (id, name, description, content, category, tags_json, dependencies_json, conflicts_json, variables_json, priority, role, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)"
   ).run(
     id,
     input.name.trim(),
@@ -287,6 +336,7 @@ export function createAsset(db: SqliteDatabase, input: PromptAssetInput): Prompt
     JSON.stringify(cleanStringArray(input.conflictsWith)),
     JSON.stringify(input.variables ?? []),
     Number.isFinite(input.priority) ? input.priority : 0,
+    input.role ?? "system",
     now,
     now
   );
@@ -305,6 +355,7 @@ export function updateAsset(
 
   const next = {
     name: input.name?.trim() ?? existing.name,
+    role: input.role ?? existing.role,
     description: input.description ?? existing.description,
     content: input.content ?? existing.content,
     category: input.category?.trim() || existing.category,
@@ -317,9 +368,10 @@ export function updateAsset(
   const now = new Date().toISOString();
 
   db.prepare(
-    "UPDATE prompt_assets SET name = ?, description = ?, content = ?, category = ?, tags_json = ?, dependencies_json = ?, conflicts_json = ?, variables_json = ?, priority = ?, version = version + 1, updated_at = ? WHERE id = ?"
+    "UPDATE prompt_assets SET name = ?, role = ?, description = ?, content = ?, category = ?, tags_json = ?, dependencies_json = ?, conflicts_json = ?, variables_json = ?, priority = ?, version = version + 1, updated_at = ? WHERE id = ?"
   ).run(
     next.name,
+    next.role,
     next.description,
     next.content,
     next.category,
@@ -345,6 +397,7 @@ export function listAssetVersions(db: SqliteDatabase, assetId: string): PromptAs
     assetId: row.asset_id,
     version: row.version,
     snapshot: parseJson<PromptAssetSnapshot>(row.snapshot_json, {
+      role: "system",
       name: "",
       description: "",
       content: "",
@@ -369,6 +422,7 @@ export function restoreAssetVersion(
   ).get(assetId, version) as { snapshot_json: string } | undefined;
   if (!row) return null;
   const snapshot = parseJson<PromptAssetSnapshot>(row.snapshot_json, {
+    role: "system",
     name: "",
     description: "",
     content: "",
@@ -439,7 +493,7 @@ export function createCompileRun(
   const id = randomUUID();
   const now = new Date().toISOString();
   db.prepare(
-    "INSERT INTO compile_runs (id, project_id, task_id, target, input_json, output_text, token_estimate, status, warnings_json, errors_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    "INSERT INTO compile_runs (id, project_id, task_id, target, input_json, output_text, token_estimate, status, warnings_json, errors_json, messages_json, manifest_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   ).run(
     id,
     input.projectId,
@@ -451,6 +505,8 @@ export function createCompileRun(
     input.status,
     JSON.stringify(input.warnings),
     JSON.stringify(input.errors),
+    JSON.stringify(input.messages),
+    JSON.stringify(input.manifest),
     now
   );
   return getCompileRun(db, id)!;
