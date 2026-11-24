@@ -64,6 +64,8 @@ describe("PromptForge deterministic kernel", () => {
     expect(result.messages.map((message) => message.role)).toEqual(["system", "developer", "user"]);
     expect(result.messages[0]?.sourceAssetIds).toEqual(["s"]);
     expect(result.messages[2]?.content).toContain("Do the task");
+    expect(result.orderedAssetIds).toEqual(result.messages.flatMap((message) => message.sourceAssetIds));
+    expect(result.manifest.orderedAssetIds).toEqual(result.orderedAssetIds);
   });
 
   it("allows a later role to depend on an earlier role", () => {
