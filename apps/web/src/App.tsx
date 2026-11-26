@@ -157,7 +157,25 @@ function collectSelectedVariableDefinitions(
   const definitions = new Map<string, VariableDefinition>();
   for (const asset of ordered) {
     for (const definition of asset.variables) {
-      if (!definitions.has(definition.name)) definitions.set(definition.name, definition);
+      const existing = definitions.get(definition.name);
+      if (!existing) {
+        definitions.set(definition.name, definition);
+        continue;
+      }
+      definitions.set(definition.name, {
+        name: definition.name,
+        required: existing.required || definition.required,
+        ...(existing.description
+          ? { description: existing.description }
+          : definition.description
+            ? { description: definition.description }
+            : {}),
+        ...(existing.defaultValue !== undefined
+          ? { defaultValue: existing.defaultValue }
+          : definition.defaultValue !== undefined
+            ? { defaultValue: definition.defaultValue }
+            : {})
+      });
     }
   }
   return [...definitions.values()].sort((left, right) => left.name.localeCompare(right.name));
