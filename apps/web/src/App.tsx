@@ -105,7 +105,9 @@ function formFromAsset(asset: PromptAsset): AssetFormState {
 }
 
 function payloadFromForm(form: AssetFormState): PromptAssetInput {
-  const manualVariables = JSON.parse(form.variablesJson) as VariableDefinition[];
+  const manualVariables = (form.variablesJson.trim()
+    ? JSON.parse(form.variablesJson)
+    : []) as VariableDefinition[];
   if (!Array.isArray(manualVariables) || manualVariables.some((item) => !item || typeof item.name !== "string")) {
     throw new Error("高级变量定义必须是包含 name 字段的 JSON 数组。");
   }
