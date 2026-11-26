@@ -109,13 +109,16 @@ function payloadFromForm(form: AssetFormState): PromptAssetInput {
   if (!Array.isArray(manualVariables) || manualVariables.some((item) => !item || typeof item.name !== "string")) {
     throw new Error("高级变量定义必须是包含 name 字段的 JSON 数组。");
   }
-  const variablesByName = new Map(manualVariables.map((item) => [item.name, item]));
+  const variables = [...manualVariables];
+  const definedNames = new Set(manualVariables.map((item) => item.name));
   const placeholderPattern = /\{\{\s*([\p{L}_][\p{L}\p{N}_.-]*)\s*\}\}/gu;
   for (const match of form.content.matchAll(placeholderPattern)) {
     const name = match[1]!;
-    if (!variablesByName.has(name)) variablesByName.set(name, { name, required: true });
+    if (!definedNames.has(name)) {
+      variables.push({ name, required: true });
+      definedNames.add(name);
+    }
   }
-  const variables = [...variablesByName.values()];
   return {
     name: form.name.trim(),
     role: form.role,
@@ -686,8 +689,8 @@ function App() {
                     ) : (
                       <div className="create-project-box">
                         <FolderKanban size={20} />
-                        <strong>先创建一个项目</strong>
-                        <p>项目用于保存任务上下文与默认 Token 预算。</p>
+                        <strong>项目是可选的</strong>
+                        <p>不创建项目也可以直接组合和生成提示词。创建项目后可以保存任务上下文与预算。</p>
                         <div className="inline-create"><input value={newProjectName} onChange={(event) => setNewProjectName(event.target.value)} placeholder="例如：Prompt Engineering" /><button className="button button-primary button-small" onClick={createProject} disabled={!newProjectName.trim() || busy}><Plus size={14} /> 创建</button></div>
                       </div>
                     )}
