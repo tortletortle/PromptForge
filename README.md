@@ -60,6 +60,16 @@ Open the Vite URL printed by the web workspace (normally `http://127.0.0.1:5173`
 
 The default database is `data/promptforge.sqlite` relative to the API process working directory. Override it with `PROMPTFORGE_DB_PATH`.
 
+## 最小使用流程
+
+1. 打开“提示词库”，新建模块，只填写名称、角色和提示词正文。
+2. 需要动态内容时，在正文中写 `{{ variable_name }}`；保存时会自动识别为必填变量。默认值、依赖、冲突等设置可在“高级设置”中配置。
+3. 打开“组合工作台”，选择需要组合的模块。依赖模块会自动展开。
+4. 在自动生成的变量输入框中填写内容，选择目标平台，然后生成提示词。
+5. 检查预览，复制到 AI 对话，或导出目标平台文件。每次编译都会保存到“编译历史”。
+
+项目和任务是可选项；不创建项目也能直接使用核心组合流程。PromptForge 只负责管理、组合和导出提示词，不会自动调用模型，也不会静默修改外部项目文件。
+
 ## Dependency lockfile
 
 The root `package-lock.json` locks the root package and all npm workspaces (`apps/api`, `apps/web`, and `packages/core`). Use `npm ci` for clean, reproducible installs; CI also uses `npm ci` and fails if the lockfile is out of sync with workspace manifests. When changing dependencies, update the relevant workspace `package.json` and regenerate the lockfile with Node.js 22 / npm 10 or newer. Commit the manifest and lockfile changes together; do not edit `package-lock.json` by hand.

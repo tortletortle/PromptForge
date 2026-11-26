@@ -299,3 +299,57 @@ input, textarea, select { color: var(--ink); }
   .preview-tab { padding-left: 7px; padding-right: 7px; }
   .message-card > pre { font-size: 8px; }
 }
+
+/* Minimal product flow: keep everyday editing small and reveal advanced controls on demand. */
+.advanced-settings {
+  margin-top: 15px;
+  border-top: 1px solid #edf0f4;
+  padding-top: 12px;
+}
+.advanced-settings summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  list-style: none;
+  color: #58657a;
+  font-size: 10px;
+  font-weight: 700;
+  user-select: none;
+}
+.advanced-settings summary::-webkit-details-marker { display: none; }
+.advanced-settings summary::after {
+  content: "+";
+  margin-left: auto;
+  color: #8994a6;
+  font-size: 15px;
+  font-weight: 400;
+}
+.advanced-settings[open] summary::after { content: "−"; }
+.advanced-settings summary span {
+  color: #9aa4b2;
+  font-size: 9px;
+  font-weight: 400;
+}
+.advanced-fields { padding-top: 15px; }
+.variable-fields {
+  display: grid;
+  gap: 10px;
+}
+.variable-field { margin-bottom: 0; }
+.variable-field > small {
+  display: block;
+  margin-top: -5px;
+  color: #929cad;
+  font-size: 9px;
+  line-height: 1.5;
+}
+.variable-empty {
+  border: 1px dashed #e1e6ee;
+  border-radius: 7px;
+  padding: 13px 14px;
+  color: #929cad;
+  background: #fbfcfe;
+  font-size: 9px;
+  line-height: 1.6;
+}
