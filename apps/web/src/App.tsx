@@ -105,10 +105,17 @@ function formFromAsset(asset: PromptAsset): AssetFormState {
 }
 
 function payloadFromForm(form: AssetFormState): PromptAssetInput {
-  const variables = JSON.parse(form.variablesJson) as VariableDefinition[];
-  if (!Array.isArray(variables) || variables.some((item) => !item || typeof item.name !== "string")) {
-    throw new Error("变量定义必须是包含 name 字段的 JSON 数组。");
+  const manualVariables = JSON.parse(form.variablesJson) as VariableDefinition[];
+  if (!Array.isArray(manualVariables) || manualVariables.some((item) => !item || typeof item.name !== "string")) {
+    throw new Error("高级变量定义必须是包含 name 字段的 JSON 数组。");
   }
+  const variablesByName = new Map(manualVariables.map((item) => [item.name, item]));
+  const placeholderPattern = /\{\{\s*([\p{L}_][\p{L}\p{N}_.-]*)\s*\}\}/gu;
+  for (const match of form.content.matchAll(placeholderPattern)) {
+    const name = match[1]!;
+    if (!variablesByName.has(name)) variablesByName.set(name, { name, required: true });
+  }
+  const variables = [...variablesByName.values()];
   return {
     name: form.name.trim(),
     role: form.role,
@@ -121,6 +128,34 @@ function payloadFromForm(form: AssetFormState): PromptAssetInput {
     variables,
     priority: Number(form.priority) || 0
   };
+}
+
+function collectSelectedVariableDefinitions(
+  assets: PromptAsset[],
+  selectedAssetIds: string[]
+): VariableDefinition[] {
+  const byId = new Map(assets.map((asset) => [asset.id, asset]));
+  const visited = new Set<string>();
+  const ordered: PromptAsset[] = [];
+
+  const visit = (id: string): void => {
+    if (visited.has(id)) return;
+    visited.add(id);
+    const asset = byId.get(id);
+    if (!asset) return;
+    for (const dependencyId of asset.dependencies) visit(dependencyId);
+    ordered.push(asset);
+  };
+
+  for (const id of selectedAssetIds) visit(id);
+
+  const definitions = new Map<string, VariableDefinition>();
+  for (const asset of ordered) {
+    for (const definition of asset.variables) {
+      if (!definitions.has(definition.name)) definitions.set(definition.name, definition);
+    }
+  }
+  return [...definitions.values()].sort((left, right) => left.name.localeCompare(right.name));
 }
 
 function formatDate(value: string): string {
@@ -146,7 +181,7 @@ function App() {
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState("");
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
-  const [variablesJson, setVariablesJson] = useState("{}");
+  const [variableValues, setVariableValues] = useState<Record<string, string>>({});
   const [target, setTarget] = useState<AdapterId>("cursor");
   const [tokenBudget, setTokenBudget] = useState("8000");
   const [newProjectName, setNewProjectName] = useState("");
@@ -177,6 +212,11 @@ function App() {
   const categories = useMemo(() => {
     return ["All", ...new Set(assets.map((asset) => asset.category).filter(Boolean))];
   }, [assets]);
+
+  const variableDefinitions = useMemo(
+    () => collectSelectedVariableDefinitions(assets, selectedAssetIds),
+    [assets, selectedAssetIds]
+  );
 
   async function loadWorkspace(): Promise<void> {
     const [assetResult, projectResult] = await Promise.all([api.assets(), api.projects()]);
@@ -235,7 +275,7 @@ function App() {
   useEffect(() => {
     const task = tasks.find((item) => item.id === selectedTaskId);
     if (!task) return;
-    setVariablesJson(JSON.stringify(task.context, null, 2));
+    setVariableValues(task.context);
     if (task.selectedAssetIds.length > 0) setSelectedAssetIds(task.selectedAssetIds);
   }, [selectedTaskId, tasks]);
 
@@ -388,10 +428,12 @@ function App() {
     setError("");
     setNotice("");
     try {
-      const variables = JSON.parse(variablesJson) as Record<string, string>;
-      if (!variables || typeof variables !== "object" || Array.isArray(variables)) {
-        throw new Error("变量必须是 JSON 对象，例如 {\"audience\":\"engineers\"}。");
-      }
+      const activeVariableNames = new Set(variableDefinitions.map((definition) => definition.name));
+      const variables = Object.fromEntries(
+        Object.entries(variableValues).filter(([name, value]) =>
+          activeVariableNames.has(name) && typeof value === "string" && value.length > 0
+        )
+      );
       const response = await api.compile({
         ...(selectedProjectId ? { projectId: selectedProjectId } : {}),
         ...(selectedTaskId ? { taskId: selectedTaskId } : {}),
@@ -585,18 +627,23 @@ function App() {
                       </div>
                       <div className="editor-form">
                         <div className="form-grid">
-                          {!isNewAsset && selectedAssetId && <label className="field field-wide"><span>模块 ID <small>供依赖与冲突引用</small></span><input readOnly value={selectedAssetId} /></label>}
                           <label className="field field-wide"><span>模块名称 <b>*</b></span><input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="例如：代码审查标准" /></label>
-                          <label className="field"><span>提示词角色 <small>决定结构化消息顺序</small></span><select aria-label="提示词角色" value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as PromptRole })}><option value="system">系统指令（system）</option><option value="developer">开发者指令（developer）</option><option value="user">用户输入（user）</option></select></label>
-                          <label className="field"><span>分类</span><input value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} placeholder="Engineering" /></label>
-                          <label className="field"><span>优先级</span><input type="number" value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value })} /></label>
-                          <label className="field field-wide"><span>描述</span><input value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="这个模块解决什么问题？" /></label>
-                          <label className="field field-wide"><span>提示词正文 <b>*</b></span><textarea className="content-editor" value={form.content} onChange={(event) => setForm({ ...form, content: event.target.value })} placeholder={"你是一名资深的软件工程师。\n请遵循以下约束..."} /></label>
-                          <label className="field field-wide"><span>标签 <small>用逗号分隔</small></span><input value={form.tags} onChange={(event) => setForm({ ...form, tags: event.target.value })} placeholder="coding, review, quality" /></label>
-                          <label className="field field-wide"><span>依赖模块 ID <small>用逗号分隔</small></span><input value={form.dependencies} onChange={(event) => setForm({ ...form, dependencies: event.target.value })} placeholder="填写需要先加载的模块 ID" /></label>
-                          <label className="field field-wide"><span>冲突模块 ID <small>用逗号分隔</small></span><input value={form.conflictsWith} onChange={(event) => setForm({ ...form, conflictsWith: event.target.value })} placeholder="不能同时组合的模块 ID" /></label>
-                          <label className="field field-wide"><span>变量定义 <small>JSON 数组</small></span><textarea className="json-editor" value={form.variablesJson} onChange={(event) => setForm({ ...form, variablesJson: event.target.value })} spellCheck={false} /></label>
+                          <label className="field field-wide"><span>提示词角色</span><select aria-label="提示词角色" value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as PromptRole })}><option value="system">系统指令（system）</option><option value="developer">开发者指令（developer）</option><option value="user">用户输入（user）</option></select></label>
+                          <label className="field field-wide"><span>提示词正文 <b>*</b></span><textarea className="content-editor" value={form.content} onChange={(event) => setForm({ ...form, content: event.target.value })} placeholder={"写下需要复用的指令。变量使用 {{ variable_name }}，保存后会自动识别。"} /></label>
                         </div>
+                        <details className="advanced-settings">
+                          <summary><strong>高级设置</strong><span>分类、标签、依赖、冲突和变量默认值</span></summary>
+                          <div className="form-grid advanced-fields">
+                            {!isNewAsset && selectedAssetId && <label className="field field-wide"><span>模块 ID <small>供依赖与冲突引用</small></span><input readOnly value={selectedAssetId} /></label>}
+                            <label className="field"><span>分类</span><input value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} placeholder="Engineering" /></label>
+                            <label className="field"><span>优先级</span><input type="number" value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value })} /></label>
+                            <label className="field field-wide"><span>描述</span><input value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="这个模块解决什么问题？" /></label>
+                            <label className="field field-wide"><span>标签 <small>用逗号分隔</small></span><input value={form.tags} onChange={(event) => setForm({ ...form, tags: event.target.value })} placeholder="coding, review, quality" /></label>
+                            <label className="field field-wide"><span>依赖模块 ID <small>用逗号分隔</small></span><input value={form.dependencies} onChange={(event) => setForm({ ...form, dependencies: event.target.value })} placeholder="填写需要先加载的模块 ID" /></label>
+                            <label className="field field-wide"><span>冲突模块 ID <small>用逗号分隔</small></span><input value={form.conflictsWith} onChange={(event) => setForm({ ...form, conflictsWith: event.target.value })} placeholder="不能同时组合的模块 ID" /></label>
+                            <label className="field field-wide"><span>变量定义 <small>高级 JSON；普通变量会从正文自动识别</small></span><textarea className="json-editor" value={form.variablesJson} onChange={(event) => setForm({ ...form, variablesJson: event.target.value })} spellCheck={false} /></label>
+                          </div>
+                        </details>
                       </div>
                       <div className="editor-footer"><span><ShieldCheck size={14} /> {selectedAsset ? roleLabels[selectedAsset.role ?? "system"] + " · 当前 v" + selectedAsset.version + " · " + assetVersions.length + " 个历史快照" : "保存后生成新版本"}</span><span>支持 {"{{ variable }}"} 模板</span></div>
                     </>
@@ -663,7 +710,22 @@ function App() {
 
                   <div className="panel">
                     <div className="panel-title"><div className="step-number">03</div><div><h3>变量与输出目标</h3><p>在编译时注入任务级参数</p></div></div>
-                    <label className="field"><span>变量值 <small>JSON 对象</small></span><textarea className="json-editor variable-editor" value={variablesJson} onChange={(event) => setVariablesJson(event.target.value)} spellCheck={false} placeholder={'{\n  "audience": "engineers",\n  "language": "Chinese"\n}'} /></label>
+                    <div className="variable-fields" aria-label="模板变量">
+                      {variableDefinitions.length > 0 ? variableDefinitions.map((definition) => (
+                        <label className="field variable-field" key={definition.name}>
+                          <span>{definition.name} {definition.required && <b>*</b>}</span>
+                          <input
+                            aria-label={"变量值：" + definition.name}
+                            value={variableValues[definition.name] ?? ""}
+                            onChange={(event) => setVariableValues((current) => ({ ...current, [definition.name]: event.target.value }))}
+                            placeholder={definition.defaultValue !== undefined ? "默认值：" + definition.defaultValue : definition.required ? "填写必需变量" : "可留空"}
+                          />
+                          {definition.description && <small>{definition.description}</small>}
+                        </label>
+                      )) : (
+                        <div className="variable-empty">选择包含模板变量的模块后，输入项会自动出现在这里。无需手写 JSON。</div>
+                      )}
+                    </div>
                     <div className="form-grid compact-grid">
                       <label className="field"><span>目标平台</span><select value={target} onChange={(event) => setTarget(event.target.value as AdapterId)}>{(Object.keys(adapterLabels) as AdapterId[]).map((id) => <option key={id} value={id}>{adapterLabels[id]}</option>)}</select></label>
                       <label className="field"><span>Token 预算</span><input type="number" min="1" value={tokenBudget} onChange={(event) => setTokenBudget(event.target.value)} /></label>
