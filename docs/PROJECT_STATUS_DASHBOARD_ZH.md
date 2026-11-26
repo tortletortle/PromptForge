@@ -5,7 +5,7 @@
 ## 当前研发基线
 
 - 仓库：`tortletortle/PromptForge`
-- 稳定集成分支：`main` @ `46f0b6f3a7094de36bedd628dc88e0cc845bd1ac`
+- 稳定集成分支：`main` @ `e828c07c318f9f208853727510d51eb433c62066`
 - 开发分支：`develop/v0.1` @ `3262b16f3eb912414ee170e39da38b6854f5c576`
 - 技术栈：Node.js 22、TypeScript、React、Fastify、SQLite、Vite。
 
@@ -98,7 +98,7 @@
 |---|---|---|---|
 | [PF-004 前端角色编辑](https://github.com/tortletortle/PromptForge/issues/7) | P0 | 已完成 | PR #11 / Run #106 |
 | PF-005 结构化预览与 Manifest 历史查看 | P1 | 待启动 | 能定位消息来源并复现历史输入 |
-| [PF-006 SQLite 多进程竞争与恢复](https://github.com/tortletortle/PromptForge/issues/8) | P0 | Open | 无静默丢失、迁移可恢复 |
+| [PF-006 SQLite 多进程竞争与恢复](https://github.com/tortletortle/PromptForge/issues/8) | P0 | 进行中：第一阶段已合入 PR #15 | 完成崩溃恢复和锁竞争验证 |
 | [PF-007 API 输入与资源限制](https://github.com/tortletortle/PromptForge/issues/9) | P0 | 已完成 | PR #13 / Run #111；main Run #112 |
 | PF-008 真实网络压测与 Soak | P0 | 阻塞中 | 有可复跑脚本、原始数据和性能报告 |
 | PF-009 备份恢复 | P1 | 待启动 | 数据库往返恢复通过 |
@@ -109,4 +109,4 @@
 | PF-014 桌面安装包选型 | P2 | 待启动 | 干净环境安装与升级验收 |
 | [PF-015 npm lockfile 与 npm ci](https://github.com/tortletortle/PromptForge/issues/10) | P0 | 已完成 | package-lock.json / Run #109 |
 
-**当前结论：** main 已具备可持续开发的初始产品基线，并通过 Run #101。PF-004、PF-007、PF-015 已完成；下一阶段优先验证 SQLite 多进程竞争与崩溃恢复（PF-006）；尚未达到正式发布条件。
+**当前结论：** main 已具备可持续开发的初始产品基线，并通过 Run #101。PF-004、PF-007、PF-015 已完成；PF-006 第一阶段已合入，但完整崩溃恢复验收仍在进行；尚未达到正式发布条件。
