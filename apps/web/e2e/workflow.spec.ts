@@ -12,7 +12,6 @@ test("asset → project/task → compile → export → history", async ({ page 
   await page.locator(".page-heading").getByRole("button", { name: "新建模块" }).click();
   await page.getByPlaceholder("例如：代码审查标准").fill(assetName);
   await page.locator(".content-editor").fill("Write concise technical guidance for {{ audience }}.");
-  await page.locator(".json-editor").fill('[{"name":"audience","required":true}]');
   await page.getByRole("button", { name: "保存模块" }).click();
   await expect(page.locator(".success-feedback")).toContainText("模块已保存");
 
@@ -28,6 +27,7 @@ test("asset → project/task → compile → export → history", async ({ page 
   const assetRow = page.locator(".selectable-asset").filter({ hasText: assetName });
   await expect(assetRow).toBeVisible();
   await assetRow.locator('input[type="checkbox"]').check({ force: true });
+  await expect(page.getByLabel("变量值：audience")).toHaveValue("engineering teams");
   await page.locator(".compile-button").click();
 
   await expect(page.locator(".success-pill")).toContainText("BUILD PASSED");
@@ -57,9 +57,13 @@ test("role-aware editing persists versions and previews ordered messages with so
     await page.getByPlaceholder("例如：代码审查标准").fill(name);
     await page.getByLabel("提示词角色").selectOption(role);
     await page.locator(".content-editor").fill(content);
-    if (dependencyId) await page.getByPlaceholder("填写需要先加载的模块 ID").fill(dependencyId);
+    if (dependencyId) {
+      await page.locator(".advanced-settings").evaluate((element) => { (element as HTMLDetailsElement).open = true; });
+      await page.getByPlaceholder("填写需要先加载的模块 ID").fill(dependencyId);
+    }
     await page.getByRole("button", { name: "保存模块" }).click();
     await expect(page.locator(".success-feedback")).toContainText("模块已保存");
+    await page.locator(".advanced-settings").evaluate((element) => { (element as HTMLDetailsElement).open = true; });
     return page.locator(".asset-editor input[readonly]").inputValue();
   }
 
