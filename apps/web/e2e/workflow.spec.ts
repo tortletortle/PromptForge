@@ -67,7 +67,7 @@ test("role-aware editing persists versions and previews ordered messages with so
     return page.locator(".asset-editor input[readonly]").inputValue();
   }
 
-  const systemId = await createRoleAsset(systemName, "system", "You are a reliable assistant.");
+  const systemId = await createRoleAsset(systemName, "system", "You are a reliable assistant for {{ audience }}.");
   const developerId = await createRoleAsset(developerName, "developer", "Follow the engineering policy.", systemId);
   const userId = await createRoleAsset(userName, "user", "Answer this request.", developerId);
 
@@ -82,6 +82,7 @@ test("role-aware editing persists versions and previews ordered messages with so
     if (!shouldSelect && (await checkbox.isChecked())) await checkbox.uncheck({ force: true });
   }
 
+  await page.getByLabel("变量值：audience").fill("engineering teams");
   await page.getByLabel("目标平台").selectOption("api");
   await page.locator(".compile-button").click();
   await expect(page.locator(".success-pill")).toContainText("BUILD PASSED");
